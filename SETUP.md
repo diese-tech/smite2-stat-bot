@@ -203,7 +203,9 @@ This creates a top-level Google Drive folder that is shared with your entire sta
 2. Click **"+ New" → "Folder"**.
 3. Name it something like: `Frank's Retirement Home Stats`
 4. Click **"Create"**.
-5. Right-click the new folder → **"Share"** → add each staff member's Google account email. Set their permission to **"Viewer"** (or "Editor" if staff need to edit sheets directly).
+5. Right-click the new folder → **"Share"** and add two groups:
+   - **Staff team** — add each staff member's Google account email, set to **"Viewer"** (or "Editor" if they need to edit sheets directly)
+   - **Bot service account** — add `franks-stat-bot@franks-stat-bot.iam.gserviceaccount.com`, set to **"Editor"** (the bot needs Editor access to create season folders inside)
 6. Click **"Share"**.
 7. Open the folder. Look at the URL in your browser — it will look like:
    ```

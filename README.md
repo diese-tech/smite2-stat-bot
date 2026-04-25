@@ -15,7 +15,7 @@ Built for **Frank's Retirement Home** — designed to be cloned and adapted for 
 - **Reaction system** — ✅ linked, ⚠️ partial/unlinked, ❓ unrecognized, ❌ failed
 - **Unlinked tab** — screenshots posted without a match ID are saved for staff to resolve with `/link`
 - **Staff slash commands** — `/status`, `/link`, `/result`, `/reparse`, `/newseason`, `/newmatch`
-- **Per-season Drive folders** — each `/newseason` creates a nested folder inside a shared top-level Drive folder
+- **Per-season Drive folders** — each `/newseason` creates a nested folder inside a shared top-level Drive folder (share the folder with staff + the bot service account as Editor)
 
 ---
 
