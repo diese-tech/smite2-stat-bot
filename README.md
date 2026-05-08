@@ -19,6 +19,12 @@ Built for **Frank's Retirement Home** — designed to be cloned and adapted for 
 
 ---
 
+## Required AI Workflow Review
+
+Before beginning AI-assisted implementation, debugging, refactoring, migration, or production fix work in this repository, review [docs/AI_WORKFLOW_GUARDRAILS.md](./docs/AI_WORKFLOW_GUARDRAILS.md).
+
+Default behavior: smallest safe change, lowest blast radius, no unrelated file edits, no speculative rewrites, and explicit consideration of scale, queues, caching, indexes, retries, idempotency, rollback, and operational safety.
+
 ## Getting Started
 
 ### Option 1 — Clone the repo
