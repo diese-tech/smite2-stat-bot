@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 
-from commands._checks import require_guild, staff_only
+from commands._checks import economy_enabled, require_guild, staff_only
 from services import economy_service
 
 
@@ -20,6 +20,7 @@ def setup(tree: app_commands.CommandTree) -> None:
         max_wager="Maximum points one user may place on this line",
         close_condition="When this should close, default is manual",
     )
+    @economy_enabled()
     @staff_only()
     async def create(
         interaction: discord.Interaction,
@@ -51,21 +52,25 @@ def setup(tree: app_commands.CommandTree) -> None:
         await interaction.followup.send(embed=_line_embed(line))
 
     @group.command(name="open", description="Open a wager line for community point entries")
+    @economy_enabled()
     @staff_only()
     async def open_line(interaction: discord.Interaction, line_id: str):
         await _set_status(interaction, line_id, economy_service.open_line)
 
     @group.command(name="close", description="Close a wager line manually")
+    @economy_enabled()
     @staff_only()
     async def close(interaction: discord.Interaction, line_id: str):
         await _set_status(interaction, line_id, economy_service.close_line)
 
     @group.command(name="lock", description="Lock a wager line before settlement")
+    @economy_enabled()
     @staff_only()
     async def lock(interaction: discord.Interaction, line_id: str):
         await _set_status(interaction, line_id, economy_service.lock_line)
 
     @group.command(name="void", description="Void a wager line and refund placed entries")
+    @economy_enabled()
     @staff_only()
     async def void(interaction: discord.Interaction, line_id: str, reason: str = "admin void"):
         await interaction.response.defer(ephemeral=False)
@@ -83,6 +88,7 @@ def setup(tree: app_commands.CommandTree) -> None:
 
     @group.command(name="settle", description="Settle an official match wager line")
     @app_commands.describe(winning_option="Winning option label, exactly as shown on the line")
+    @economy_enabled()
     @staff_only()
     async def settle(interaction: discord.Interaction, line_id: str, winning_option: str):
         await interaction.response.defer(ephemeral=False)

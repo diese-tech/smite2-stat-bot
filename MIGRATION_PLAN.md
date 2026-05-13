@@ -172,6 +172,10 @@ Implemented commands:
 /wallet check
 /wallet adjust
 /ledger post
+/ledger transactions
+/ledger audit
+/ledger export
+/ledger health
 /bet
 /wagers
 /leaderboard
@@ -180,10 +184,9 @@ Implemented commands:
 
 Hardening still required:
 
-- move economy state out of `forgelens_economy.json`
-- enforce a production-ready per-guild enable/disable policy
+- move economy state from JSON-on-volume to a database
 - add a GodForge handoff signal for automatic line close/lock without letting GodForge settle wagers
-- add richer ledger browsing and reconciliation tools
+- add CSV/Sheets export once JSON export has been live-validated
 
 ## Suggested implementation prompt
 

@@ -91,3 +91,41 @@ def test_void_refunds_open_wagers_and_preserves_cross_guild(tmp_path, monkeypatc
     assert result["refunds"] == [{"wager_id": "WG-0001", "user_id": "1", "refund": 50}]
     assert economy_service.get_wallet(111, 1)["balance"] == 500
     assert economy_service.get_wallet(222, 1)["balance"] == 425
+
+
+def test_transactions_audit_health_and_export_are_guild_scoped(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    guild_config_service.update_guild_config(111, {"betting_enabled": True})
+    guild_config_service.update_guild_config(222, {"betting_enabled": False})
+    line = economy_service.create_line(111, "GF-0001", "Final", "Order", "Chaos", 100, "manual", 99)
+    other = economy_service.create_line(222, "GF-0001", "Final", "Order", "Chaos", 100, "manual", 99)
+    economy_service.open_line(111, line["line_id"], 99)
+    economy_service.open_line(222, other["line_id"], 99)
+    economy_service.place_wager(111, line["line_id"], 1, "A", "Order", 50)
+    economy_service.place_wager(111, line["line_id"], 2, "B", "Chaos", 25)
+    economy_service.place_wager(222, other["line_id"], 1, "A", "Order", 75)
+
+    user_txs = economy_service.transactions(111, user_id=1)
+    events = economy_service.audit_events(111, target=line["line_id"])
+    health = economy_service.health(111)
+    export = economy_service.export_data(111)
+
+    assert {tx["user_id"] for tx in user_txs} == {"1"}
+    assert all(event["guild_id"] == "111" for event in events)
+    assert health["economy_enabled"] is True
+    assert health["wallet_count"] == 2
+    assert health["placed_wager_count"] == 2
+    assert health["storage_exists"] is True
+    assert export["guild_id"] == "111"
+    assert {wallet["user_id"] for wallet in export["wallets"]} == {"1", "2"}
+    assert all(wager["guild_id"] == "111" for wager in export["wagers"])
+
+
+def test_economy_path_can_use_configured_storage_file(tmp_path, monkeypatch):
+    configured_path = tmp_path / "data" / "forgelens_economy.json"
+    monkeypatch.setattr(economy_service.config, "FORGELENS_ECONOMY_PATH", str(configured_path))
+
+    economy_service.ensure_wallet(111, 42, "Player")
+
+    assert economy_service.economy_path() == configured_path
+    assert configured_path.exists()

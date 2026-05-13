@@ -138,6 +138,7 @@ ADMIN_REPORT_CHANNEL_ID=    ← same process
 STAFF_ROLE_IDS=             ← right-click the role in Discord → Copy ID
                                (comma-separate multiple IDs if needed)
 STARTING_BALANCE=500        <- default fictional community-points wallet seed
+FORGELENS_ECONOMY_PATH=     <- optional persistent economy JSON path
 ```
 
 > To copy Channel IDs and Role IDs in Discord, you must have **Developer Mode** enabled. Go to Discord Settings → Advanced → Developer Mode → turn it on. Then right-click any channel or role to see "Copy ID".
@@ -204,6 +205,15 @@ The setup flow stores the server's screenshot channel, JSON drop channel, admin 
 
 ForgeLens community points are fictional league points only. There is no payment integration, real-money wagering, or compliance claim in this bot.
 
+Economy commands start disabled. When you are ready for a server to use wallets and wagers, run:
+
+```text
+/forgelens economy-enable
+/ledger health
+```
+
+Use `/forgelens economy-disable` to pause economy commands without deleting existing wallets, wagers, transactions, or audit records.
+
 Useful follow-up commands:
 
 ```text
@@ -215,7 +225,10 @@ Useful follow-up commands:
 /forgelens drive
 /forgelens prefix
 /forgelens starting-balance
+/forgelens economy-enable
+/forgelens economy-disable
 /newseason
+/ledger health
 /help
 ```
 
@@ -303,6 +316,7 @@ Railway uses environment variables instead of a `.env` file. You need to add all
 | `STAFF_ROLE_IDS` | Role ID(s) from your `.env` |
 | `PARENT_DRIVE_FOLDER_ID` | Drive folder ID from your `.env` |
 | `STARTING_BALANCE` | Default fictional wallet seed, usually `500` |
+| `FORGELENS_ECONOMY_PATH` | `/app/data/forgelens_economy.json` when using a Railway volume |
 | `GOOGLE_CREDENTIALS_JSON` | See step below — paste the entire credentials file |
 
 **For `GOOGLE_CREDENTIALS_JSON`:**
@@ -313,6 +327,28 @@ Railway can't accept uploaded files, so the credentials are stored as a single e
 3. Copy it and paste the entire thing as the value for `GOOGLE_CREDENTIALS_JSON` in Railway.
 
 Do **not** set `GOOGLE_CREDENTIALS_PATH` on Railway — leave it unset. The bot will use `GOOGLE_CREDENTIALS_JSON` instead.
+
+---
+
+### Step 3b - Add A Railway Volume For ForgeLens Economy
+
+ForgeLens writes wallets, wager lines, wagers, transactions, audit events, and ledger posts to one JSON file. For Railway, attach a volume to the service before enabling economy commands.
+
+Recommended Railway volume settings:
+
+```text
+Mount path: /app/data
+Environment variable:
+FORGELENS_ECONOMY_PATH=/app/data/forgelens_economy.json
+```
+
+After deploy, run:
+
+```text
+/ledger health
+```
+
+Confirm the storage path is `/app/data/forgelens_economy.json`. After a restart, run `/ledger health` and `/wallet check` again to confirm the data persisted.
 
 ---
 

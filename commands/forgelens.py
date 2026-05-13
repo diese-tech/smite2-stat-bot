@@ -62,7 +62,7 @@ def setup(tree: app_commands.CommandTree) -> None:
             "league_prefix": clean_prefix,
             "parent_drive_folder_id": _clean_text(parent_drive_folder_id),
             "starting_balance": int(starting_balance),
-            "betting_enabled": False,
+            "betting_enabled": bool(existing.get("betting_enabled")),
         })
 
         await interaction.followup.send(_format_setup_summary(guild, interaction.guild))
@@ -236,6 +236,35 @@ def setup(tree: app_commands.CommandTree) -> None:
             f"New wallets will start with `{guild.get('starting_balance')}` community points."
         )
 
+    @group.command(name="economy-enable", description="Enable ForgeLens community-points commands")
+    @setup_allowed()
+    async def economy_enable_command(interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        guild_id = await require_guild(interaction)
+        if guild_id is None:
+            return
+        guild = guild_config_service.update_guild_config(guild_id, {
+            "betting_enabled": True,
+        })
+        await interaction.followup.send(
+            "ForgeLens economy enabled for this server.\n\n"
+            f"Starting balance for new wallets: `{guild.get('starting_balance')}` community points."
+        )
+
+    @group.command(name="economy-disable", description="Disable ForgeLens community-points commands")
+    @setup_allowed()
+    async def economy_disable_command(interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        guild_id = await require_guild(interaction)
+        if guild_id is None:
+            return
+        guild_config_service.update_guild_config(guild_id, {
+            "betting_enabled": False,
+        })
+        await interaction.followup.send(
+            "ForgeLens economy disabled for this server. Existing wallets, wagers, and ledger records are preserved."
+        )
+
     tree.add_command(group)
 
 
@@ -302,7 +331,7 @@ def _format_setup_summary(config: dict, guild: discord.Guild | None) -> str:
         f"Confidence threshold: `{config.get('confidence_threshold')}`\n"
         f"Starting balance: `{config.get('starting_balance')}`\n"
         f"Drive parent folder: {_drive_status(config)}\n"
-        "Community points: `fictional points only`\n\n"
+        f"Community points: `{_economy_status(config)}`\n\n"
         "Next: run `/newseason name:Season 1`."
     )
 
@@ -321,7 +350,7 @@ def _format_config_summary(config: dict, guild: discord.Guild | None) -> str:
         f"Starting balance: `{config.get('starting_balance')}`\n"
         f"Drive parent folder: {_drive_status(config)}\n"
         f"Active season: `{active_label}`\n"
-        f"Community points: `fictional points only`"
+        f"Community points: `{_economy_status(config)}`"
     )
 
 
@@ -335,3 +364,7 @@ def _format_admin_summary(prefix: str, config: dict, guild: discord.Guild | None
 
 def _drive_status(config: dict) -> str:
     return "configured" if config.get("parent_drive_folder_id") else "not configured"
+
+
+def _economy_status(config: dict) -> str:
+    return "enabled - fictional points only" if config.get("betting_enabled") else "disabled"

@@ -68,3 +68,27 @@ def setup_allowed():
         return False
 
     return app_commands.check(predicate)
+
+
+def economy_enabled():
+    """App command check: guild must have the ForgeLens economy enabled."""
+    async def predicate(interaction: discord.Interaction) -> bool:
+        guild_id = await require_guild(interaction)
+        if guild_id is None:
+            return False
+
+        guild_cfg = guild_config_service.get_guild_config(guild_id)
+        if guild_cfg.get("betting_enabled"):
+            return True
+
+        message = (
+            "ForgeLens economy is disabled for this server. "
+            "A stat admin can enable it with `/forgelens economy-enable`."
+        )
+        if not interaction.response.is_done():
+            await interaction.response.send_message(message, ephemeral=True)
+        else:
+            await interaction.followup.send(message, ephemeral=True)
+        return False
+
+    return app_commands.check(predicate)

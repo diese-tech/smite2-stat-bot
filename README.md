@@ -129,6 +129,8 @@ Runtime flow:
 | `/forgelens drive parent_drive_folder_id:` | Discord admin or stat admin | Updates the parent Drive folder used for future season folders. |
 | `/forgelens prefix league_prefix:` | Discord admin or stat admin | Updates the prefix used by `/newmatch`. |
 | `/forgelens starting-balance amount:` | Discord admin or stat admin | Updates the guild's default wallet seed balance for newly created wallets. |
+| `/forgelens economy-enable` | Discord admin or stat admin | Enables community-points wallet, wager, and ledger commands for the current guild. |
+| `/forgelens economy-disable` | Discord admin or stat admin | Disables community-points commands while preserving existing economy data. |
 | `/newseason name:` | Stat admin | Creates a Drive folder and Google Sheet, creates/updates the guild active season, and writes the season schema. |
 | `/newmatch blue_captain: red_captain:` | Stat admin | Generates a `LEAGUE_PREFIX-XXXX` match ID and appends a guild-scoped `created` row to `Match Log`. |
 | `/status uid:` | Stat admin | Shows game rows, match status, stat row count, winner, and score for the current guild. |
@@ -144,6 +146,10 @@ Runtime flow:
 | `/wallet check user:` | Any user | Shows the caller's wallet, or another user's wallet when supplied. |
 | `/wallet adjust user: amount: reason:` | Stat admin | Applies an admin balance adjustment and records a transaction. |
 | `/ledger post title: body: line_id:` | Stat admin | Posts and records a manual community-points ledger notice. |
+| `/ledger transactions user: limit:` | Stat admin | Shows recent guild-scoped transactions, optionally filtered to one user. |
+| `/ledger audit target: limit:` | Stat admin | Shows recent economy audit events, optionally filtered to one target. |
+| `/ledger export` | Stat admin | Exports the guild's economy data as a JSON Discord attachment. |
+| `/ledger health` | Stat admin | Shows economy storage path, storage existence, enabled status, and record counts. |
 | `/bet line_id: option: amount:` | Any user | Places a wager on an open line after balance and duplicate checks. |
 | `/wagers` | Any user | Lists active lines and the caller's recent wagers for the guild. |
 | `/leaderboard` | Any user | Shows the top guild wallets by current point balance. |
@@ -197,6 +203,7 @@ LEAGUE_PREFIX=FRH
 CONFIDENCE_THRESHOLD=90
 BETTING_ENABLED=false
 STARTING_BALANCE=500
+FORGELENS_ECONOMY_PATH=/app/data/forgelens_economy.json
 PARENT_DRIVE_FOLDER_ID=optional_google_drive_folder_id
 ```
 
@@ -246,8 +253,9 @@ For Railway, use environment variables instead of `.env`. Use `GOOGLE_CREDENTIAL
 | `STAFF_ROLE_IDS` | Recommended | Comma-separated role IDs allowed to use stat-admin commands by default. |
 | `STAT_ADMIN_USER_IDS` | Optional | Comma-separated user IDs allowed to use stat-admin commands by default. |
 | `CONFIDENCE_THRESHOLD` | Optional | Default review threshold stored in config/season metadata. Defaults to `90`; field-level confidence is not fully implemented yet. |
-| `BETTING_ENABLED` | Optional | Parsed as a boolean bootstrap default. Verify before production use because the MVP economy commands do not yet enforce a guild enable/disable gate. |
+| `BETTING_ENABLED` | Optional | Bootstrap default for new guild configs. Runtime control is per guild through `/forgelens economy-enable` and `/forgelens economy-disable`. Defaults to `false`. |
 | `STARTING_BALANCE` | Optional | Default community-points wallet seed for new guild wallets. Defaults to `500`. |
+| `FORGELENS_ECONOMY_PATH` | Recommended for hosted use | Path to the persistent economy JSON file. For Railway, mount a volume at `/app/data` and set `/app/data/forgelens_economy.json`. Defaults to local `forgelens_economy.json`. |
 | `GOOGLE_CREDENTIALS_PATH` | Local yes unless using JSON env | Path to service-account JSON. Defaults to `franks-retirement-home-credentials.json`. |
 | `GOOGLE_CREDENTIALS_JSON` | Hosted alternative | Full service-account JSON blob for hosts that cannot mount a file. |
 | `GEMINI_API_KEY` | Yes | Gemini API key used by `google-genai`. |
@@ -261,7 +269,7 @@ Local files:
 | File | Purpose |
 | --- | --- |
 | `guild_config.json` | Per-guild config, active season pointers, channel IDs, admin IDs, threshold, and Drive parent defaults. Created automatically. |
-| `forgelens_economy.json` | Per-guild wallets, wager lines, wagers, ledger transactions, audit entries, and manual ledger posts. Created automatically by economy commands. |
+| `forgelens_economy.json` or `FORGELENS_ECONOMY_PATH` | Per-guild wallets, wager lines, wagers, ledger transactions, audit entries, and manual ledger posts. Created automatically by economy commands. |
 | `active_season.json` | Legacy active-season file. If present, it can be migrated into a guild entry on first lookup. |
 
 Each season Google Sheet contains:
@@ -293,6 +301,8 @@ archived
 - `guild_config.json` is JSON-backed local state. On ephemeral hosts, make sure it persists or supply bootstrap env values and recreate active seasons as needed.
 - `/forgelens setup` can be run by Discord administrators or already-configured stat admins, which prevents first-run lockout when no stat admin role is configured yet.
 - `/forgelens setup` is an MVP setup flow. Granular commands now cover channels, stat admins, confidence threshold, Drive folder, and match ID prefix, but Google Drive access is not validated yet.
+- Economy commands are disabled for each guild until `/forgelens economy-enable` is run. `/ledger health` remains available to stat admins so storage can be verified before enabling.
+- On Railway, mount a volume at `/app/data` and set `FORGELENS_ECONOMY_PATH=/app/data/forgelens_economy.json`; then use `/ledger health` after deploy to confirm the file path and persistence.
 - `on_ready` currently calls each command module's `setup` before syncing slash commands.
 - Screenshot OCR keeps one `scoreboard` and one `details` result from a message. Multiple attachments of the same type can overwrite the previous in-memory result for that message.
 - Screenshot-derived game numbers are currently blank because the correlator does not assign game order.
@@ -304,6 +314,27 @@ archived
 - High-confidence OCR is still evidence, not an official match result.
 - ForgeLens wager settlement is intentionally gated on `official` match status. OCR alone must not settle a line.
 - Community points are fictional league points only. Do not add payment integrations, real-money wording, or compliance claims.
+
+### Economy Smoke Test
+
+After deploying with a persistent `FORGELENS_ECONOMY_PATH`, run this in a test guild before opening usage broadly:
+
+```text
+/forgelens economy-enable
+/ledger health
+/wallet check
+/newmatch
+/wager create
+/wager open
+/bet
+/wager close
+/result
+/wager settle
+/ledger transactions
+/ledger export
+```
+
+Restart the Railway service, then run `/ledger health` and `/wallet check` again to confirm the volume persisted the economy file.
 
 ## Known Issues / Refactor Targets
 
@@ -329,14 +360,14 @@ archived
 
 ### Economy And Ledger
 
-- The current economy subsystem is JSON-backed (`forgelens_economy.json`) and should move to durable storage before serious production use.
+- The current economy subsystem is JSON-backed. With `FORGELENS_ECONOMY_PATH` on a persistent Railway volume it is acceptable for MVP use, but a real database is still the long-term target.
 - The MVP payout model is pool-style two-option match outcome betting only. Stat props and custom odds need separate design.
 - Wager lines default to manual close/lock. There is no reliable GodForge started-match signal wired in yet.
 - Settlement requires the line to be `closed` or `locked` and the linked match to be `official`.
 - Settlement is idempotent by state: already-settled lines reject another settlement attempt.
 - Admin voids refund placed wagers and preserve transaction history.
-- Ledger posts are manual Discord notices plus stored audit records; there is no paginated ledger browsing command yet.
-- `BETTING_ENABLED` exists as config, but command-level gating still needs a production policy pass.
+- Ledger posts are manual Discord notices plus stored audit records. `/ledger transactions`, `/ledger audit`, `/ledger export`, and `/ledger health` provide the current reconciliation surface.
+- `BETTING_ENABLED` is only a bootstrap default; per-guild command gating is controlled by `/forgelens economy-enable` and `/forgelens economy-disable`.
 
 ## Roadmap
 
@@ -346,8 +377,7 @@ archived
 - Add player identity, aliases, and optional Discord user mapping.
 - Add stronger duplicate detection for `guild_id + match_id` and near-duplicate evidence.
 - Add export/reporting commands around confirmed or official matches.
-- Move wallets, wagers, transactions, and audit data from JSON to durable storage.
-- Add production-grade enable/disable policy for community-points commands per guild.
+- Move wallets, wagers, transactions, and audit data from JSON-on-volume to a database.
 - Add GodForge handoff integration for match start/close signals without letting GodForge settle wagers.
 
 ## Contributing / Development Notes

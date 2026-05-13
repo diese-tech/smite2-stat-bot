@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 
-from commands._checks import require_guild, staff_only
+from commands._checks import economy_enabled, require_guild, staff_only
 from services import economy_service
 
 
@@ -12,6 +12,7 @@ def setup(tree: app_commands.CommandTree) -> None:
     group = app_commands.Group(name="wallet", description="Manage ForgeLens community point wallets")
 
     @group.command(name="check", description="Check a community point wallet")
+    @economy_enabled()
     async def check(interaction: discord.Interaction, user: discord.Member | None = None):
         await interaction.response.defer(ephemeral=True)
         guild_id = await require_guild(interaction)
@@ -25,6 +26,7 @@ def setup(tree: app_commands.CommandTree) -> None:
 
     @group.command(name="adjust", description="Adjust a community point wallet")
     @app_commands.describe(amount="Positive or negative point adjustment", reason="Audit reason for the adjustment")
+    @economy_enabled()
     @staff_only()
     async def adjust(interaction: discord.Interaction, user: discord.Member, amount: int, reason: str):
         await interaction.response.defer(ephemeral=True)

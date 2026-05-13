@@ -22,6 +22,8 @@ SETUP_COMMANDS = [
     ("/forgelens drive", "Update the parent Google Drive folder for future seasons."),
     ("/forgelens prefix", "Update the match ID prefix used by /newmatch."),
     ("/forgelens starting-balance", "Update the default points for newly created wallets."),
+    ("/forgelens economy-enable", "Enable community-points commands for this server."),
+    ("/forgelens economy-disable", "Disable community-points commands while preserving data."),
 ]
 
 MATCH_COMMANDS = [
@@ -42,6 +44,10 @@ ECONOMY_ADMIN_COMMANDS = [
     ("/wager settle", "Settle a closed or locked line after the match is official."),
     ("/wallet adjust", "Apply an admin wallet adjustment with an audit reason."),
     ("/ledger post", "Post and record a manual community-points ledger notice."),
+    ("/ledger transactions", "Show recent wallet and wager transactions."),
+    ("/ledger audit", "Show recent economy audit events."),
+    ("/ledger export", "Export guild economy data as JSON."),
+    ("/ledger health", "Show economy storage path and record counts."),
 ]
 
 
@@ -73,7 +79,8 @@ def setup(tree: app_commands.CommandTree) -> None:
             value=(
                 "`/result` makes a match official. Wager settlement requires an official match "
                 "and a closed or locked line. Community points are fictional only; there is no "
-                "payment integration or real-money wagering."
+                "payment integration or real-money wagering. Economy commands require `/forgelens economy-enable`; "
+                "`/ledger health` remains available for storage checks."
             ),
             inline=False,
         )

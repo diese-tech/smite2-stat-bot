@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 
-from commands._checks import require_guild
+from commands._checks import economy_enabled, require_guild
 from services import economy_service
 
 
@@ -16,6 +16,7 @@ def setup(tree: app_commands.CommandTree) -> None:
 
 @app_commands.command(name="bet", description="Place community points on an open ForgeLens wager line")
 @app_commands.describe(option="Option label exactly as shown on the line", amount="Community points to place")
+@economy_enabled()
 async def _bet_command(interaction: discord.Interaction, line_id: str, option: str, amount: app_commands.Range[int, 1, 1_000_000]):
     await interaction.response.defer(ephemeral=True)
     guild_id = await require_guild(interaction)
@@ -40,6 +41,7 @@ async def _bet_command(interaction: discord.Interaction, line_id: str, option: s
 
 
 @app_commands.command(name="wagers", description="Show open ForgeLens wager lines")
+@economy_enabled()
 async def _wagers_command(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     guild_id = await require_guild(interaction)
@@ -72,6 +74,7 @@ async def _wagers_command(interaction: discord.Interaction):
 
 
 @app_commands.command(name="leaderboard", description="Show top community point balances")
+@economy_enabled()
 async def _leaderboard_command(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     guild_id = await require_guild(interaction)
