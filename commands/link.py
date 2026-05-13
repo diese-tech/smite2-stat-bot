@@ -1,11 +1,12 @@
 import asyncio
 import json
+from datetime import timezone
 
 import discord
 from discord import app_commands
 
 from services import sheets_service
-from commands._checks import staff_only
+from commands._checks import require_guild, staff_only
 
 
 def setup(tree: app_commands.CommandTree) -> None:
@@ -14,6 +15,9 @@ def setup(tree: app_commands.CommandTree) -> None:
     @staff_only()
     async def link(interaction: discord.Interaction, uid: str):
         await interaction.response.defer(ephemeral=True)
+        guild_id = await require_guild(interaction)
+        if guild_id is None:
+            return
 
         if not interaction.message or not interaction.message.reference:
             await interaction.followup.send(
@@ -25,13 +29,13 @@ def setup(tree: app_commands.CommandTree) -> None:
         message_id = str(ref.message_id)
         uid = uid.upper().strip()
 
-        sheet_id = sheets_service.get_active_sheet_id()
+        sheet_id = sheets_service.get_active_sheet_id(guild_id)
         if not sheet_id:
             await interaction.followup.send("No active season sheet. Run `/newseason` first.")
             return
 
         unlinked = await asyncio.to_thread(
-            sheets_service.remove_unlinked_by_message_id, sheet_id, message_id
+            sheets_service.remove_unlinked_by_message_id, sheet_id, message_id, guild_id
         )
 
         if unlinked is None:
@@ -60,8 +64,27 @@ def setup(tree: app_commands.CommandTree) -> None:
         )
         for row in rows:
             row["draft_id"] = uid
+            row["guild_id"] = str(guild_id)
+            row["match_status"] = "parsed"
+            row["evidence_fingerprint"] = unlinked.get("Evidence Fingerprint", "")
+
+        if not await asyncio.to_thread(sheets_service.match_exists, sheet_id, uid, guild_id):
+            submitted_at = interaction.created_at.replace(tzinfo=timezone.utc).isoformat()
+            await asyncio.to_thread(sheets_service.append_match_log, sheet_id, {
+                "draft_id": uid,
+                "guild_id": str(guild_id),
+                "game_number": "",
+                "submitted_at": submitted_at,
+                "game_status": "Evidence Uploaded",
+                "match_status": "evidence_uploaded",
+                "evidence_fingerprints": unlinked.get("Evidence Fingerprint", ""),
+                "review_notes": "Created when an unlinked screenshot was attached",
+            })
 
         await asyncio.to_thread(sheets_service.append_player_stats, sheet_id, rows)
+        await asyncio.to_thread(
+            sheets_service.update_match_status, sheet_id, uid, guild_id, "parsed"
+        )
         await interaction.followup.send(
             f"✅ Linked message `{message_id}` to `{uid}`. {len(rows)} player rows moved to Player Stats."
         )

@@ -1,7 +1,7 @@
 import discord
 from discord import app_commands
 
-from commands._checks import staff_only
+from commands._checks import require_guild, staff_only
 
 
 def setup(tree: app_commands.CommandTree) -> None:
@@ -9,6 +9,9 @@ def setup(tree: app_commands.CommandTree) -> None:
     @staff_only()
     async def reparse(interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
+        guild_id = await require_guild(interaction)
+        if guild_id is None:
+            return
 
         if not interaction.message or not interaction.message.reference:
             await interaction.followup.send(

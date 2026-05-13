@@ -2,6 +2,8 @@
 
 This repo already contains the stat bot MVP: Discord commands, passive screenshot handling, Gemini Vision parsing, Google Sheets/Drive export, GodForge JSON support, and season/match commands. The migration goal is not a rewrite; it is a boundary hardening pass that moves stat/ledger responsibilities out of GodForge and into ForgeLens.
 
+Current live boundary: GodForge betting/ledger remains live in GodForge. This hardening pass must not delete, migrate, or couple ForgeLens to that subsystem until a separate ledger migration is explicitly planned.
+
 ## Target boundary
 
 ### GodForge keeps
@@ -53,6 +55,8 @@ Implement or verify:
 - stat admin users and roles
 - confidence threshold config, default `90`
 - betting enabled/disabled config, default `false`
+
+The preferred deployment model remains league-owned: each guild/league owns its Google credentials, parent Drive folder, generated season sheets, and exported data.
 
 Suggested commands:
 

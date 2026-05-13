@@ -23,11 +23,21 @@ LEAGUE_SLUG = "franks-retirement-home"
 LEAGUE_PREFIX = os.getenv("LEAGUE_PREFIX", "FRH")  # used by /newmatch for non-GodForge servers
 
 # ── Discord ────────────────────────────────────────────────────────────────
+def _optional_int(name: str) -> int | None:
+    value = os.getenv(name)
+    return int(value) if value else None
+
+
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-SCREENSHOT_CHANNEL_ID = int(os.getenv("SCREENSHOT_CHANNEL_ID"))
-JSON_CHANNEL_ID = int(os.getenv("JSON_CHANNEL_ID"))
-ADMIN_REPORT_CHANNEL_ID = int(os.getenv("ADMIN_REPORT_CHANNEL_ID"))
+SCREENSHOT_CHANNEL_ID = _optional_int("SCREENSHOT_CHANNEL_ID")
+JSON_CHANNEL_ID = _optional_int("JSON_CHANNEL_ID")
+ADMIN_REPORT_CHANNEL_ID = _optional_int("ADMIN_REPORT_CHANNEL_ID")
 STAFF_ROLE_IDS = [int(rid.strip()) for rid in os.getenv("STAFF_ROLE_IDS", "").split(",") if rid.strip()]
+STAT_ADMIN_USER_IDS = [
+    int(uid.strip()) for uid in os.getenv("STAT_ADMIN_USER_IDS", "").split(",") if uid.strip()
+]
+CONFIDENCE_THRESHOLD = int(os.getenv("CONFIDENCE_THRESHOLD", "90"))
+BETTING_ENABLED = os.getenv("BETTING_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 # ── Google ─────────────────────────────────────────────────────────────────
 GOOGLE_CREDENTIALS_PATH = os.getenv("GOOGLE_CREDENTIALS_PATH", "franks-retirement-home-credentials.json")

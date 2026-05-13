@@ -2,6 +2,8 @@
 
 ForgeLens is a multi-server Smite 2 stat tracking Discord bot. It processes match evidence, normalizes player stats, exports league reports, and may later support optional ledger and betting workflows.
 
+Current implementation boundary: GodForge betting/ledger remains live in GodForge and is not migrated into ForgeLens in the MVP hardening pass. ForgeLens must not delete, rewrite, or assume ownership of that subsystem until a later explicit migration.
+
 ## Language
 
 **ForgeLens**:
@@ -120,6 +122,7 @@ _Avoid_: stat prediction when money/points are at stake
 - **Bets** attach to a Discord user.
 - A **Ledger** belongs to one **Guild** and may be disabled for that Guild.
 - A **Ledger** may only resolve against an **Official Match**.
+- In the current live system, ledger/betting is a GodForge-owned legacy/live subsystem, not a ForgeLens-owned persistence model.
 
 ## Match lifecycle
 

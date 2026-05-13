@@ -4,6 +4,7 @@ import discord
 from discord.ext import commands
 
 import config
+from services import guild_config_service
 from handlers.screenshot_handler import handle_screenshot_message
 from handlers.json_handler import handle_json_message
 
@@ -36,10 +37,16 @@ async def on_ready():
 async def on_message(message: discord.Message):
     if message.author.bot:
         return
+    if message.guild is None:
+        return
 
-    if message.channel.id == config.SCREENSHOT_CHANNEL_ID:
+    guild_cfg = guild_config_service.get_guild_config(message.guild.id)
+    screenshot_channel_id = guild_cfg.get("screenshot_channel_id") or config.SCREENSHOT_CHANNEL_ID
+    json_channel_id = guild_cfg.get("json_channel_id") or config.JSON_CHANNEL_ID
+
+    if message.channel.id == screenshot_channel_id:
         await handle_screenshot_message(message)
-    elif message.channel.id == config.JSON_CHANNEL_ID:
+    elif message.channel.id == json_channel_id:
         await handle_json_message(message)
 
     await bot.process_commands(message)

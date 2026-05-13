@@ -5,7 +5,8 @@ from discord import app_commands
 
 import config
 from services import sheets_service
-from commands._checks import staff_only
+from services import guild_config_service
+from commands._checks import require_guild, staff_only
 
 
 def setup(tree: app_commands.CommandTree) -> None:
@@ -14,7 +15,11 @@ def setup(tree: app_commands.CommandTree) -> None:
     @staff_only()
     async def newseason(interaction: discord.Interaction, name: str):
         await interaction.response.defer(ephemeral=True)
+        guild_id = await require_guild(interaction)
+        if guild_id is None:
+            return
 
+        guild_cfg = guild_config_service.get_guild_config(guild_id)
         season_name = name.strip()
         folder_name = f"{config.LEAGUE_SLUG} — {season_name}"
 
@@ -22,17 +27,20 @@ def setup(tree: app_commands.CommandTree) -> None:
 
         try:
             folder_id = await asyncio.to_thread(
-                sheets_service.create_drive_folder, folder_name, config.PARENT_DRIVE_FOLDER_ID
+                sheets_service.create_drive_folder,
+                folder_name,
+                guild_cfg.get("parent_drive_folder_id") or config.PARENT_DRIVE_FOLDER_ID,
             )
             sheet_id  = await asyncio.to_thread(
-                sheets_service.create_season_sheet, season_name, folder_id
+                sheets_service.create_season_sheet, season_name, folder_id, guild_id
             )
         except Exception as e:
             await interaction.followup.send(f"❌ Failed to create season: {e}")
             return
 
         sheet_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}"
-        admin_channel = interaction.guild.get_channel(config.ADMIN_REPORT_CHANNEL_ID)
+        admin_channel_id = guild_cfg.get("admin_report_channel_id") or config.ADMIN_REPORT_CHANNEL_ID
+        admin_channel = interaction.guild.get_channel(admin_channel_id) if admin_channel_id else None
 
         summary = (
             f"✅ **{season_name}** is now active.\n"

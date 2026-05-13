@@ -2,6 +2,8 @@
 
 This guide walks you through everything you need to do **before** the bot can run. Follow each section in order. You do not need to be technical — every step includes exactly what to click.
 
+ForgeLens is designed for **league-owned deployment**. The league owner should create and control the Google account, Cloud project, service account, API keys, shared Drive folder, and generated season sheets. The developer does not need access to league data after handoff.
+
 ---
 
 ## What You're Setting Up
@@ -198,6 +200,8 @@ If any check fails, the script will print a specific error message explaining wh
 > **Who does this:** The league owner, once, before the first `/newseason` command is run. Staff do not need to do this.
 
 This creates a top-level Google Drive folder that is shared with your entire staff team. Every season sheet the bot creates will automatically appear inside it, so staff never need to be re-invited.
+
+In multi-guild use, each Discord server should configure its own parent Drive folder and active season. Match IDs, evidence, stats, and season records are scoped by Discord `guild_id`.
 
 1. Go to [drive.google.com](https://drive.google.com) and sign in with **your personal Google account** (not the bot account).
 2. Click **"+ New" → "Folder"**.

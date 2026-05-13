@@ -2,6 +2,7 @@
 .env
 *-credentials.json
 active_season.json
+guild_config.json
 
 # Python
 __pycache__/

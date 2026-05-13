@@ -5,17 +5,20 @@ from datetime import timezone
 import discord
 
 import config
-from services import sheets_service
+from services import evidence_service, guild_config_service, sheets_service
 from utils.uid_parser import extract_uid
 
 
 async def handle_json_message(message: discord.Message) -> None:
     """Process a new message in the JSON drop channel."""
+    if message.guild is None:
+        return
+
     json_attachments = [a for a in message.attachments if a.filename.endswith(".json")]
     if not json_attachments:
         return
 
-    sheet_id = sheets_service.get_active_sheet_id()
+    sheet_id = sheets_service.get_active_sheet_id(message.guild.id)
     if not sheet_id:
         await _admin(message, "⚠️ No active season sheet. Run `/newseason` first.")
         return
@@ -50,12 +53,32 @@ async def _process_attachment(
         await _admin(message, f"❌ Could not determine draft_id from `{attachment.filename}`.")
         return
 
+    guild_id = message.guild.id
+    fingerprint = evidence_service.fingerprint_json(data)
+    if sheets_service.evidence_exists(sheet_id, guild_id, draft_id, fingerprint):
+        await _admin(message, f"⚠️ Duplicate Draft JSON ignored for `{draft_id}` in guild `{guild_id}`.")
+        return
+
     submitted_at = message.created_at.replace(tzinfo=timezone.utc).isoformat()
     games = data.get("games") or [data]  # support flat (single-game) or games-array format
+
+    await asyncio.to_thread(sheets_service.append_evidence, sheet_id, {
+        "guild_id": str(guild_id),
+        "match_id": draft_id,
+        "evidence_fingerprint": fingerprint,
+        "evidence_type": "draft_json",
+        "message_id": str(message.id),
+        "filename": attachment.filename,
+        "uploaded_at": submitted_at,
+        "parsed_player_names": "",
+        "status": "evidence_uploaded",
+        "notes": "Draft JSON enriches match context only",
+    })
 
     for i, game in enumerate(games, start=1):
         row = {
             "draft_id":      draft_id,
+            "guild_id":      str(guild_id),
             "game_number":   game.get("game_number", i),
             "submitted_at":  submitted_at,
             "blue_captain":  data.get("blue_captain", ""),
@@ -66,6 +89,9 @@ async def _process_attachment(
             "red_bans":      _join(game.get("red_bans", [])),
             "fearless_pool": _join(game.get("fearless_pool", [])),
             "game_status":   game.get("status", game.get("game_status", "Unknown")),
+            "match_status":  "evidence_uploaded",
+            "evidence_fingerprints": fingerprint,
+            "review_notes":  "Draft JSON enrichment; stats require screenshot evidence and confirmation",
             "winner":        "TBD",
             "series_score":  "TBD",
         }
@@ -83,6 +109,10 @@ def _join(values: list) -> str:
 
 
 async def _admin(message: discord.Message, text: str) -> None:
-    channel = message.guild.get_channel(config.ADMIN_REPORT_CHANNEL_ID)
+    guild_cfg = guild_config_service.get_guild_config(message.guild.id)
+    channel_id = guild_cfg.get("admin_report_channel_id") or config.ADMIN_REPORT_CHANNEL_ID
+    if channel_id is None:
+        return
+    channel = message.guild.get_channel(channel_id)
     if channel:
         await channel.send(text)

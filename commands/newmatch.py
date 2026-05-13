@@ -7,7 +7,7 @@ from discord import app_commands
 
 import config
 from services import sheets_service
-from commands._checks import staff_only
+from commands._checks import require_guild, staff_only
 
 
 def _generate_uid() -> str:
@@ -16,9 +16,9 @@ def _generate_uid() -> str:
     return f"{config.LEAGUE_PREFIX}-{suffix}"
 
 
-async def _uid_is_unique(sheet_id: str, uid: str) -> bool:
+async def _uid_is_unique(sheet_id: str, uid: str, guild_id: int) -> bool:
     """Return True if this UID doesn't already exist in the Match Log."""
-    status = await asyncio.to_thread(sheets_service.get_match_status, sheet_id, uid)
+    status = await asyncio.to_thread(sheets_service.get_match_status, sheet_id, uid, guild_id)
     return len(status["games"]) == 0
 
 
@@ -31,8 +31,11 @@ def setup(tree: app_commands.CommandTree) -> None:
     @staff_only()
     async def newmatch(interaction: discord.Interaction, blue_captain: str, red_captain: str):
         await interaction.response.defer(ephemeral=False)
+        guild_id = await require_guild(interaction)
+        if guild_id is None:
+            return
 
-        sheet_id = sheets_service.get_active_sheet_id()
+        sheet_id = sheets_service.get_active_sheet_id(guild_id)
         if not sheet_id:
             await interaction.followup.send("No active season sheet. Run `/newseason` first.")
             return
@@ -40,7 +43,7 @@ def setup(tree: app_commands.CommandTree) -> None:
         # Generate a collision-free UID (retries handle the rare duplicate)
         uid = _generate_uid()
         for _ in range(5):
-            if await _uid_is_unique(sheet_id, uid):
+            if await _uid_is_unique(sheet_id, uid, guild_id):
                 break
             uid = _generate_uid()
 
@@ -49,6 +52,7 @@ def setup(tree: app_commands.CommandTree) -> None:
 
         await asyncio.to_thread(sheets_service.append_match_log, sheet_id, {
             "draft_id":      uid,
+            "guild_id":      str(guild_id),
             "game_number":   "",
             "submitted_at":  submitted_at,
             "blue_captain":  blue_captain.strip(),
@@ -59,6 +63,7 @@ def setup(tree: app_commands.CommandTree) -> None:
             "red_bans":      "",
             "fearless_pool": "",
             "game_status":   "Pending",
+            "match_status":  "created",
             "winner":        "TBD",
             "series_score":  "TBD",
         })
