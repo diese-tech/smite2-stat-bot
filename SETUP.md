@@ -137,6 +137,7 @@ ADMIN_REPORT_CHANNEL_ID=    ← same process
 
 STAFF_ROLE_IDS=             ← right-click the role in Discord → Copy ID
                                (comma-separate multiple IDs if needed)
+STARTING_BALANCE=500        <- default fictional community-points wallet seed
 ```
 
 > To copy Channel IDs and Role IDs in Discord, you must have **Developer Mode** enabled. Go to Discord Settings → Advanced → Developer Mode → turn it on. Then right-click any channel or role to see "Copy ID".
@@ -190,6 +191,33 @@ If any check fails, the script will print a specific error message explaining wh
 | `ModuleNotFoundError` | Dependencies not installed | Run `pip install -r requirements.txt` |
 
 ---
+
+## Section 10b - Configure ForgeLens in Discord
+
+After the bot is online and slash commands are synced, run the guild setup command from the Discord server that will use ForgeLens:
+
+```text
+/forgelens setup
+```
+
+The setup flow stores the server's screenshot channel, JSON drop channel, admin report channel, stat admin role, match ID prefix, parent Drive folder, confidence threshold, and starting community-points balance in `guild_config.json`.
+
+ForgeLens community points are fictional league points only. There is no payment integration, real-money wagering, or compliance claim in this bot.
+
+Useful follow-up commands:
+
+```text
+/forgelens config
+/forgelens channels
+/forgelens admin-add
+/forgelens admin-remove
+/forgelens confidence
+/forgelens drive
+/forgelens prefix
+/forgelens starting-balance
+/newseason
+/help
+```
 
 *Once `test_auth.py` passes, notify Claude Code and it will proceed to Step 2: project scaffolding.*
 
@@ -274,6 +302,7 @@ Railway uses environment variables instead of a `.env` file. You need to add all
 | `ADMIN_REPORT_CHANNEL_ID` | Channel ID from your `.env` |
 | `STAFF_ROLE_IDS` | Role ID(s) from your `.env` |
 | `PARENT_DRIVE_FOLDER_ID` | Drive folder ID from your `.env` |
+| `STARTING_BALANCE` | Default fictional wallet seed, usually `500` |
 | `GOOGLE_CREDENTIALS_JSON` | See step below — paste the entire credentials file |
 
 **For `GOOGLE_CREDENTIALS_JSON`:**

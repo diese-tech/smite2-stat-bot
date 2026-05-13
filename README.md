@@ -6,13 +6,13 @@ ForgeLens is a Discord bot for Smite 2 draft leagues. It turns match evidence - 
 
 Players upload screenshots. GodForge can post draft exports. ForgeLens reads the evidence, sends screenshots to Gemini Vision, records match and stat rows, tracks duplicate evidence, and gives stat admins slash commands for season setup, match IDs, linking, reparsing, status checks, and result confirmation.
 
-ForgeLens is the stats companion, not the live match-ops bot. GodForge owns live drafting, randomization, match orchestration, and its current betting/ledger system. ForgeLens owns evidence intake, OCR parsing, normalized stat rows, review state, and reporting/export surfaces.
+ForgeLens is the stats and economy companion, not the live match-ops bot. GodForge owns live drafting, randomization, match orchestration, and Draft JSON handoff. ForgeLens owns evidence intake, OCR parsing, normalized stat rows, review state, reporting/export surfaces, and the new guild-scoped community-points wager/ledger subsystem.
 
 ## Current Status
 
 ForgeLens is an active MVP with a recent guild-scoping hardening pass. It now supports guild-scoped active seasons, match rows, evidence rows, player stat rows, unlinked evidence, and stat-admin configuration through `guild_config.json` plus `Guild ID` columns in the season sheet.
 
-It is still not a finished full production stat platform. Current hardening is focused on keeping Discord servers from sharing active seasons or sheet rows. Deeper review tooling, field-level OCR confidence, player identity management, export workflows, and any future ledger module remain roadmap work.
+It is still not a finished full production stat platform. Current hardening is focused on keeping Discord servers from sharing active seasons, sheet rows, wallets, wagers, or ledger transactions. Deeper review tooling, field-level OCR confidence, player identity management, export workflows, and durable economy storage remain roadmap work.
 
 Confirmed implementation status:
 
@@ -23,7 +23,7 @@ Confirmed implementation status:
 - Google Sheets/Drive are the current operational storage/export surface.
 - Per-guild config is JSON-backed in `guild_config.json`.
 - A legacy `active_season.json` can be migrated into guild config on first read.
-- Betting/ledger is not implemented in this repo and remains live in GodForge.
+- A minimal ForgeLens-owned wager/ledger MVP is implemented for community fantasy points. It is guild-scoped, JSON-backed, and settles only after a stat admin marks the linked match official.
 
 ## Core Features
 
@@ -67,8 +67,20 @@ Confirmed implementation status:
 - Stat admins can create seasons and match IDs.
 - Staff can link an unlabelled screenshot to a match ID.
 - Staff can re-run OCR for a screenshot message.
-- Staff can confirm a reviewed result with `/result`.
+- Staff can mark a reviewed result official with `/result`.
 - `/status` reports game rows, match lifecycle status, stat row count, winner, and score.
+
+### Community Points, Wagers, And Ledger
+
+- Maintains one wallet per `guild_id + user_id`.
+- Seeds wallets with a configurable guild starting balance.
+- Records every wallet seed, admin adjustment, wager debit, payout, and refund as a ledger transaction.
+- Lets stat admins create two-option wager lines linked to a guild-scoped `match_id`.
+- Supports wager line statuses: `created`, `open`, `closed`, `locked`, `settled`, `voided`, and `archived`.
+- Lets users place one active wager per line while the line is open and their wallet has enough points.
+- Settles pool-style payouts only after the linked match is `official`.
+- Supports admin void/refund flows and manual ledger posts.
+- Uses community fantasy points only. There is no payment integration, real-money language, or compliance claim.
 
 ## Architecture / System Flow
 
@@ -87,6 +99,8 @@ flowchart TD
     Correlator --> Sheets["services/sheets_service.py"]
     DraftJson --> Sheets
     SlashCommands --> Sheets
+    SlashCommands --> Economy["services/economy_service.py"]
+    Economy --> EconomyFile["forgelens_economy.json"]
     Sheets --> Drive["Google Drive"]
     Sheets --> SeasonSheet["Google Sheet tabs"]
 ```
@@ -105,14 +119,34 @@ Runtime flow:
 
 | Command | Who Uses It | Confirmed Behavior |
 | --- | --- | --- |
+| `/help` | Any user | Shows user, setup, match/OCR, and economy command summaries inside Discord. |
 | `/forgelens setup screenshot_channel: json_channel: admin_channel: stat_admin_role: league_prefix: parent_drive_folder_id: confidence_threshold:` | Discord admin or stat admin | Configures the current guild and replies with a setup summary plus the next `/newseason` step. |
 | `/forgelens config` | Discord admin or stat admin | Shows the current ForgeLens config for the current guild. |
+| `/forgelens channels screenshot_channel: json_channel: admin_channel:` | Discord admin or stat admin | Updates guild-scoped intake and admin-report channels. |
+| `/forgelens admin-add role: user:` | Discord admin or stat admin | Adds a stat admin role, user, or both. |
+| `/forgelens admin-remove role: user:` | Discord admin or stat admin | Removes a stat admin role, user, or both. |
+| `/forgelens confidence threshold:` | Discord admin or stat admin | Updates the guild confidence threshold metadata. |
+| `/forgelens drive parent_drive_folder_id:` | Discord admin or stat admin | Updates the parent Drive folder used for future season folders. |
+| `/forgelens prefix league_prefix:` | Discord admin or stat admin | Updates the prefix used by `/newmatch`. |
+| `/forgelens starting-balance amount:` | Discord admin or stat admin | Updates the guild's default wallet seed balance for newly created wallets. |
 | `/newseason name:` | Stat admin | Creates a Drive folder and Google Sheet, creates/updates the guild active season, and writes the season schema. |
 | `/newmatch blue_captain: red_captain:` | Stat admin | Generates a `LEAGUE_PREFIX-XXXX` match ID and appends a guild-scoped `created` row to `Match Log`. |
 | `/status uid:` | Stat admin | Shows game rows, match status, stat row count, winner, and score for the current guild. |
 | `/link uid:` | Stat admin | Reply-based command that removes a matching row from `Unlinked`, creates a match shell if needed, appends parsed stats, and marks the match `parsed`. |
 | `/reparse` | Stat admin | Reply-based command that removes an old unlinked row for the message and sends screenshots through Gemini again. |
-| `/result uid: winner: score:` | Stat admin | Updates matching guild-scoped Match Log rows and marks the match `confirmed`. |
+| `/result uid: winner: score:` | Stat admin | Updates matching guild-scoped Match Log and Player Stats rows and marks the match `official`. |
+| `/wager create match_id: title: option_a: option_b: max_wager: close_condition:` | Stat admin | Creates a guild-scoped two-option wager line in `created` status. |
+| `/wager open line_id:` | Stat admin | Opens a created or closed line for betting. |
+| `/wager close line_id:` | Stat admin | Closes an open line so no new bets can be placed. |
+| `/wager lock line_id:` | Stat admin | Locks a line after close while it waits for official result settlement. |
+| `/wager void line_id: reason:` | Stat admin | Voids a line and refunds any placed wagers. |
+| `/wager settle line_id: winning_option:` | Stat admin | Settles a line against an official match result and writes payout transactions. |
+| `/wallet check user:` | Any user | Shows the caller's wallet, or another user's wallet when supplied. |
+| `/wallet adjust user: amount: reason:` | Stat admin | Applies an admin balance adjustment and records a transaction. |
+| `/ledger post title: body: line_id:` | Stat admin | Posts and records a manual community-points ledger notice. |
+| `/bet line_id: option: amount:` | Any user | Places a wager on an open line after balance and duplicate checks. |
+| `/wagers` | Any user | Lists active lines and the caller's recent wagers for the guild. |
+| `/leaderboard` | Any user | Shows the top guild wallets by current point balance. |
 
 Passive usage:
 
@@ -162,6 +196,7 @@ STAT_ADMIN_USER_IDS=
 LEAGUE_PREFIX=FRH
 CONFIDENCE_THRESHOLD=90
 BETTING_ENABLED=false
+STARTING_BALANCE=500
 PARENT_DRIVE_FOLDER_ID=optional_google_drive_folder_id
 ```
 
@@ -211,7 +246,8 @@ For Railway, use environment variables instead of `.env`. Use `GOOGLE_CREDENTIAL
 | `STAFF_ROLE_IDS` | Recommended | Comma-separated role IDs allowed to use stat-admin commands by default. |
 | `STAT_ADMIN_USER_IDS` | Optional | Comma-separated user IDs allowed to use stat-admin commands by default. |
 | `CONFIDENCE_THRESHOLD` | Optional | Default review threshold stored in config/season metadata. Defaults to `90`; field-level confidence is not fully implemented yet. |
-| `BETTING_ENABLED` | Optional | Parsed as a boolean default, but guild bootstrap currently stores betting as disabled. Verify before any ledger work. |
+| `BETTING_ENABLED` | Optional | Parsed as a boolean bootstrap default. Verify before production use because the MVP economy commands do not yet enforce a guild enable/disable gate. |
+| `STARTING_BALANCE` | Optional | Default community-points wallet seed for new guild wallets. Defaults to `500`. |
 | `GOOGLE_CREDENTIALS_PATH` | Local yes unless using JSON env | Path to service-account JSON. Defaults to `franks-retirement-home-credentials.json`. |
 | `GOOGLE_CREDENTIALS_JSON` | Hosted alternative | Full service-account JSON blob for hosts that cannot mount a file. |
 | `GEMINI_API_KEY` | Yes | Gemini API key used by `google-genai`. |
@@ -225,6 +261,7 @@ Local files:
 | File | Purpose |
 | --- | --- |
 | `guild_config.json` | Per-guild config, active season pointers, channel IDs, admin IDs, threshold, and Drive parent defaults. Created automatically. |
+| `forgelens_economy.json` | Per-guild wallets, wager lines, wagers, ledger transactions, audit entries, and manual ledger posts. Created automatically by economy commands. |
 | `active_season.json` | Legacy active-season file. If present, it can be migrated into a guild entry on first lookup. |
 
 Each season Google Sheet contains:
@@ -255,24 +292,25 @@ archived
 - ForgeLens commands must be used inside a Discord server; DM commands are rejected.
 - `guild_config.json` is JSON-backed local state. On ephemeral hosts, make sure it persists or supply bootstrap env values and recreate active seasons as needed.
 - `/forgelens setup` can be run by Discord administrators or already-configured stat admins, which prevents first-run lockout when no stat admin role is configured yet.
-- `/forgelens setup` is an MVP setup flow, not a full production admin console. It writes the main guild config fields but does not validate Google Drive access.
+- `/forgelens setup` is an MVP setup flow. Granular commands now cover channels, stat admins, confidence threshold, Drive folder, and match ID prefix, but Google Drive access is not validated yet.
 - `on_ready` currently calls each command module's `setup` before syncing slash commands.
 - Screenshot OCR keeps one `scoreboard` and one `details` result from a message. Multiple attachments of the same type can overwrite the previous in-memory result for that message.
 - Screenshot-derived game numbers are currently blank because the correlator does not assign game order.
 - `append_player_stats` increments `Total Games Logged` each time stats rows are appended; this is not the same as a fully reviewed game count.
-- `/result` confirms Match Log rows and updates Player Stats match status, but it does not calculate the `Win` column.
+- `/result` marks Match Log rows and Player Stats as `official`, but it does not calculate the `Win` column.
 - Duplicate evidence checks require the same guild, match ID, and fingerprint. Unlabelled screenshots are not checked against a match ID until linked.
 - Fuzzy matching is currently a hint for unlinked screenshots, not an automatic attachment.
 - `get_exportable_player_stats` exists for `confirmed` and `official` rows, but no dedicated export command is implemented yet.
 - High-confidence OCR is still evidence, not an official match result.
-- Betting/ledger behavior is intentionally outside this repo today; GodForge's active betting system should not be removed or reframed as part of ForgeLens hardening.
+- ForgeLens wager settlement is intentionally gated on `official` match status. OCR alone must not settle a line.
+- Community points are fictional league points only. Do not add payment integrations, real-money wording, or compliance claims.
 
 ## Known Issues / Refactor Targets
 
 ### Guild Scoping
 
 - Recent code adds guild-scoped rows and active seasons, but Google credentials and default league identity are still process-level.
-- `/forgelens setup` now covers the first-run config path, but granular edit commands for individual channels, admins, Drive folders, and thresholds are still pending.
+- `/forgelens setup` and granular config commands cover the first-run config path, but they still use local JSON storage and do not validate external Google resources.
 - `guild_config.json` should move to durable storage before serious multi-server production use.
 
 ### Match Linkage And Season Behavior
@@ -289,21 +327,28 @@ archived
 - Review state is represented by match status and notes, but there is no complete review queue UI/workflow.
 - Player identity is still name-based; there is no guild-scoped player table, aliases, or Discord-user mapping.
 
-### Ledger Boundary
+### Economy And Ledger
 
-- Ledger/betting is not implemented here.
-- ADR 0003 requires separate match/stat and ledger lifecycles if a future ledger module is added.
-- Future ledger resolution must require an official, stat-admin-confirmed match.
+- The current economy subsystem is JSON-backed (`forgelens_economy.json`) and should move to durable storage before serious production use.
+- The MVP payout model is pool-style two-option match outcome betting only. Stat props and custom odds need separate design.
+- Wager lines default to manual close/lock. There is no reliable GodForge started-match signal wired in yet.
+- Settlement requires the line to be `closed` or `locked` and the linked match to be `official`.
+- Settlement is idempotent by state: already-settled lines reject another settlement attempt.
+- Admin voids refund placed wagers and preserve transaction history.
+- Ledger posts are manual Discord notices plus stored audit records; there is no paginated ledger browsing command yet.
+- `BETTING_ENABLED` exists as config, but command-level gating still needs a production policy pass.
 
 ## Roadmap
 
-- Expand `/forgelens setup` into granular config commands for guild-scoped channels, admins, confidence threshold, and export destinations.
+- Add validation and richer UX to `/forgelens` config commands, especially Google Drive folder checks and export destination setup.
 - Move `guild_config.json` and sheet-derived state into durable storage.
 - Add field-level confidence capture and review workflows.
 - Add player identity, aliases, and optional Discord user mapping.
 - Add stronger duplicate detection for `guild_id + match_id` and near-duplicate evidence.
 - Add export/reporting commands around confirmed or official matches.
-- Keep ledger support optional, disabled by default, and separated from stat confirmation.
+- Move wallets, wagers, transactions, and audit data from JSON to durable storage.
+- Add production-grade enable/disable policy for community-points commands per guild.
+- Add GodForge handoff integration for match start/close signals without letting GodForge settle wagers.
 
 ## Contributing / Development Notes
 
@@ -324,7 +369,7 @@ Development rules of thumb:
 - Keep every new persistent record scoped by `guild_id`.
 - Treat Google Sheets/Drive as current operational storage and export output, while planning for a durable source of truth.
 - Do not commit `.env`, credentials JSON, Discord tokens, or API keys.
-- Do not migrate or delete GodForge betting/ledger behavior from this repo.
+- Treat GodForge's legacy betting/ledger code as reference only. ForgeLens owns new wager settlement and ledger writes going forward.
 
 Run tests:
 

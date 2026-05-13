@@ -38,6 +38,7 @@ STAT_ADMIN_USER_IDS = [
 ]
 CONFIDENCE_THRESHOLD = int(os.getenv("CONFIDENCE_THRESHOLD", "90"))
 BETTING_ENABLED = os.getenv("BETTING_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+STARTING_BALANCE = int(os.getenv("STARTING_BALANCE", "500"))
 
 # ── Google ─────────────────────────────────────────────────────────────────
 GOOGLE_CREDENTIALS_PATH = os.getenv("GOOGLE_CREDENTIALS_PATH", "franks-retirement-home-credentials.json")

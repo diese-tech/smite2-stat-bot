@@ -18,6 +18,7 @@ def test_new_guild_config_defaults_disable_betting(tmp_path, monkeypatch):
 
     assert guild["guild_id"] == "111"
     assert guild["confidence_threshold"] == 90
+    assert guild["starting_balance"] == 500
     assert guild["betting_enabled"] is False
 
 
@@ -32,6 +33,7 @@ def test_update_guild_config_persists_setup_fields(tmp_path, monkeypatch):
         "league_prefix": "OWL",
         "parent_drive_folder_id": "drive-folder",
         "confidence_threshold": 95,
+        "starting_balance": 750,
     })
 
     guild = guild_config_service.get_guild_config(111)
@@ -43,4 +45,5 @@ def test_update_guild_config_persists_setup_fields(tmp_path, monkeypatch):
     assert guild["league_prefix"] == "OWL"
     assert guild["parent_drive_folder_id"] == "drive-folder"
     assert guild["confidence_threshold"] == 95
+    assert guild["starting_balance"] == 750
 

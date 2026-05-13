@@ -18,8 +18,8 @@ bot = commands.Bot(command_prefix=commands.when_mentioned, intents=intents)
 
 @bot.event
 async def on_ready():
-    from commands import status, link, result, reparse, newseason, newmatch, forgelens
-    for mod in (status, link, result, reparse, newseason, newmatch, forgelens):
+    from commands import status, link, result, reparse, newseason, newmatch, forgelens, wager, wallet, betting, ledger, help
+    for mod in (status, link, result, reparse, newseason, newmatch, forgelens, wager, wallet, betting, ledger, help):
         mod.setup(bot.tree)
 
     await bot.tree.sync()

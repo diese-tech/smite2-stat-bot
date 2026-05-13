@@ -28,12 +28,12 @@ def setup(tree: app_commands.CommandTree) -> None:
             return
 
         updated = await asyncio.to_thread(
-            sheets_service.update_match_result, sheet_id, uid, winner, score, guild_id, "confirmed"
+            sheets_service.update_match_result, sheet_id, uid, winner, score, guild_id, "official"
         )
 
         if updated:
             await interaction.followup.send(
-                f"✅ `{uid}` confirmed — winner: **{winner}**, score: **{score}**"
+                f"`{uid}` is official - winner: **{winner}**, score: **{score}**"
             )
         else:
             await interaction.followup.send(

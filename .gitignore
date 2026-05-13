@@ -3,6 +3,7 @@
 *-credentials.json
 active_season.json
 guild_config.json
+forgelens_economy.json
 
 # Python
 __pycache__/

@@ -1,13 +1,13 @@
 # ForgeLens / Smite 2 Stat Bot Context
 
-ForgeLens is a multi-server Smite 2 stat tracking Discord bot. It processes match evidence, normalizes player stats, exports league reports, and may later support optional ledger and betting workflows.
+ForgeLens is a multi-server Smite 2 stat tracking Discord bot. It processes match evidence, normalizes player stats, exports league reports, and owns guild-scoped community-points wager and ledger workflows.
 
-Current implementation boundary: GodForge betting/ledger remains live in GodForge and is not migrated into ForgeLens in the MVP hardening pass. ForgeLens must not delete, rewrite, or assume ownership of that subsystem until a later explicit migration.
+Current implementation boundary: GodForge owns drafts, sessions, pick/ban flow, and match handoff. ForgeLens owns wager lines, wallets, ledger transactions, payouts, result confirmation, and economy audit data. Existing GodForge betting/ledger code is reference material only and should not be copied blindly.
 
 ## Language
 
 **ForgeLens**:
-The stat tracking bot responsible for evidence intake, OCR parsing, normalized stat records, exports, and optional ledger workflows.
+The stat tracking bot responsible for evidence intake, OCR parsing, normalized stat records, exports, and guild-scoped community-points ledger workflows.
 _Avoid_: GodForge, draft bot, betting bot
 
 **GodForge**:
@@ -95,12 +95,12 @@ A generated output pushed to Google Sheets, Google Drive, OneDrive, or another c
 _Avoid_: source of truth
 
 **Ledger**:
-An optional Guild-scoped accounting module that tracks betting balances, entries, outcomes, and payouts.
+The Guild-scoped community-points accounting module that tracks wallet balances, entries, outcomes, payouts, refunds, admin adjustments, and audit events.
 _Avoid_: match record
 
 **Bet**:
-A Discord-user-scoped wager attached to a ledger-enabled Match or future stat prop.
-_Avoid_: stat prediction when money/points are at stake
+A Discord-user-scoped community-points wager attached to a ForgeLens wager line.
+_Avoid_: real-money bet, payment, gambling product
 
 ## Relationships
 
@@ -120,13 +120,13 @@ _Avoid_: stat prediction when money/points are at stake
 - A **Player** may be linked to zero or one Discord user.
 - **Stats** attach to a **Player**.
 - **Bets** attach to a Discord user.
-- A **Ledger** belongs to one **Guild** and may be disabled for that Guild.
+- A **Ledger** belongs to one **Guild**.
 - A **Ledger** may only resolve against an **Official Match**.
-- In the current live system, ledger/betting is a GodForge-owned legacy/live subsystem, not a ForgeLens-owned persistence model.
+- GodForge may provide a Match ID or draft context, but ForgeLens owns wager state and settlement.
 
 ## Match lifecycle
 
-ForgeLens tracks match/stat state separately from ledger state.
+ForgeLens tracks match/stat state separately from wager and ledger state.
 
 ### Match status
 
@@ -139,15 +139,15 @@ ForgeLens tracks match/stat state separately from ledger state.
 - `exported`: The match was pushed to configured external outputs.
 - `archived`: The match is retained for history but no longer active.
 
-### Ledger status
+### Wager line status
 
-- `disabled`: Betting is not enabled for this Guild.
-- `not_opened`: Betting is enabled but no ledger exists for this Match.
-- `open`: Bets may be placed.
-- `closed`: Bets are locked.
-- `pending_result`: The ledger is waiting for an official result.
-- `resolved`: Payouts are complete.
+- `created`: A stat admin created a line, but bets are not open.
+- `open`: Community-point wagers may be placed.
+- `closed`: No new wagers may be placed.
+- `locked`: The line is waiting for an official result or admin settlement.
+- `settled`: Payouts are complete.
 - `voided`: Bets were canceled or invalidated.
+- `archived`: The line is retained for history.
 
 ## Validation rules
 
@@ -155,7 +155,8 @@ ForgeLens tracks match/stat state separately from ledger state.
 - The default confidence threshold is 90%.
 - Fields below the threshold require review.
 - High-confidence OCR does not make a match official by itself.
-- Any ledger or betting payout requires manual confirmation before resolution.
+- Any ledger payout requires official match status before resolution.
+- Wagering uses fictional community fantasy points only. There is no real-money flow or payment integration.
 - Duplicate uploads with the same Guild and Match ID must trigger an alert or review flow.
 - Uploads without Match ID should use fuzzy deduplication before creating a new stats-only match.
 
@@ -169,6 +170,9 @@ ForgeLens tracks match/stat state separately from ledger state.
 
 > **Dev:** "Does GodForge own the match?"
 > **Domain expert:** "GodForge may create the Match ID and Draft JSON, but ForgeLens owns the stat record and export workflow."
+
+> **Dev:** "Does GodForge settle wagers?"
+> **Domain expert:** "No. GodForge can hand off match context, but ForgeLens owns wager state, official-result settlement, payouts, and audit history."
 
 ## Flagged ambiguities
 

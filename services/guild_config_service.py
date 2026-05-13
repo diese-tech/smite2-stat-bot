@@ -42,6 +42,7 @@ def _bootstrap_config(guild_id: int | str) -> dict:
         "stat_admin_role_ids": config.STAFF_ROLE_IDS,
         "stat_admin_user_ids": config.STAT_ADMIN_USER_IDS,
         "confidence_threshold": config.CONFIDENCE_THRESHOLD,
+        "starting_balance": config.STARTING_BALANCE,
         "betting_enabled": False,
         "parent_drive_folder_id": config.PARENT_DRIVE_FOLDER_ID,
         "active_season": None,

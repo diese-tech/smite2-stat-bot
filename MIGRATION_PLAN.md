@@ -2,7 +2,7 @@
 
 This repo already contains the stat bot MVP: Discord commands, passive screenshot handling, Gemini Vision parsing, Google Sheets/Drive export, GodForge JSON support, and season/match commands. The migration goal is not a rewrite; it is a boundary hardening pass that moves stat/ledger responsibilities out of GodForge and into ForgeLens.
 
-Current live boundary: GodForge betting/ledger remains live in GodForge. This hardening pass must not delete, migrate, or couple ForgeLens to that subsystem until a separate ledger migration is explicitly planned.
+Current live boundary: GodForge owns draft/session orchestration and match handoff. ForgeLens owns the new guild-scoped community-points wager/ledger subsystem. Existing GodForge betting/ledger code is reference material only and should not be copied directly.
 
 ## Target boundary
 
@@ -27,7 +27,7 @@ Current live boundary: GodForge betting/ledger remains live in GodForge. This ha
 - Match confirmation
 - Google Sheets export
 - Google Drive / OneDrive export
-- Optional ledger and betting module
+- Community-points wallets, wager lines, wagers, ledger transactions, payouts, refunds, and audit history
 
 ## MVP hardening sequence
 
@@ -55,19 +55,22 @@ Implement or verify:
 - stat admin users and roles
 - confidence threshold config, default `90`
 - betting enabled/disabled config, default `false`
+- starting balance config, default `500`
 
 The preferred deployment model remains league-owned: each guild/league owns its Google credentials, parent Drive folder, generated season sheets, and exported data.
 
-Suggested commands:
+Implemented or suggested commands:
 
 ```text
 /forgelens setup
-/forgelens config view
-/forgelens admin add target:
-/forgelens admin remove target:
-/forgelens confidence set threshold:
-/forgelens exports configure
-/forgelens season create name:
+/forgelens config
+/forgelens admin-add role: user:
+/forgelens admin-remove role: user:
+/forgelens confidence threshold:
+/forgelens drive parent_drive_folder_id:
+/forgelens prefix league_prefix:
+/forgelens starting-balance amount:
+/newseason name:
 ```
 
 ### Phase 3 — Match identity and dedupe
@@ -130,30 +133,57 @@ Rules:
 - aliases resolve historical match data
 - IGN changes must not split stat history
 
-### Phase 6 — Optional ledger module
+### Phase 6 - ForgeLens wager/ledger MVP
 
-Do not make ledger part of the MVP hardening path unless the stat workflow is stable.
+The first ForgeLens-owned wager/ledger MVP now exists, with settlement gated by official stat-admin match results.
 
-When added:
+Implemented MVP lifecycle:
 
 ```text
-ledger_status:
-disabled
-not_opened
+line_status:
+created
 open
 closed
-pending_result
-resolved
+locked
+settled
 voided
+archived
 ```
 
 Rules:
 
-- betting is disabled by default per guild
-- match outcome betting comes first
+- wallets are scoped by `guild_id + user_id`
+- match outcome wagering comes first
 - stat props come later
 - ledger may only resolve after `match_status == official`
-- payouts require manual confirmation
+- payouts require stat admin settlement
+- all balance changes write transactions
+- community fantasy points only; no payment integration or real-money language
+
+Implemented commands:
+
+```text
+/wager create
+/wager open
+/wager close
+/wager lock
+/wager void
+/wager settle
+/wallet check
+/wallet adjust
+/ledger post
+/bet
+/wagers
+/leaderboard
+/help
+```
+
+Hardening still required:
+
+- move economy state out of `forgelens_economy.json`
+- enforce a production-ready per-guild enable/disable policy
+- add a GodForge handoff signal for automatic line close/lock without letting GodForge settle wagers
+- add richer ledger browsing and reconciliation tools
 
 ## Suggested implementation prompt
 
@@ -161,7 +191,7 @@ Rules:
 You are working in the `diese-tech/smite2-stat-bot` repo.
 
 Goal:
-Harden the existing Smite 2 stat bot MVP into ForgeLens, a multi-guild stat tracking bot that owns evidence intake, OCR parsing, match confirmation, exports, and later optional ledger/betting.
+Harden the existing Smite 2 stat bot MVP into ForgeLens, a multi-guild stat tracking bot that owns evidence intake, OCR parsing, match confirmation, exports, and guild-scoped community-points wagering.
 
 Read these docs first:
 - CONTEXT.md
@@ -177,7 +207,9 @@ Constraints:
 - Treat Google Sheets/Drive/OneDrive as export outputs, not the source of truth.
 - Use a 90% default OCR confidence threshold.
 - Require stat admin confirmation before official match status.
-- Keep ledger/betting disabled by default and separate from match status.
+- Keep ledger/wager lifecycle separate from match status.
+- Require official match status before wager settlement.
+- Treat community points as fictional league points only.
 
 Tasks:
 1. Audit current code against the docs.
@@ -187,7 +219,8 @@ Tasks:
 5. Add match lifecycle statuses.
 6. Add duplicate handling for `guild_id + match_id`.
 7. Add fuzzy dedupe for uploads without match ID.
-8. Leave ledger implementation as a later module unless existing code already contains it.
+8. Keep the economy subsystem service-layer first and avoid command-handler bloat.
+9. Do not copy GodForge ledger code directly; use it only as historical reference.
 
 Output:
 - A concise implementation plan.
