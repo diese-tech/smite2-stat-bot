@@ -5,7 +5,7 @@ import time
 from pathlib import Path
 
 import config
-from services import guild_config_service, sheets_service
+from services import guild_config_service, match_service, sheets_service
 
 
 ECONOMY_FILE = "forgelens_economy.json"
@@ -609,16 +609,21 @@ def audit_events(guild_id: int | str, target: str = "", limit: int = 20) -> list
 def export_data(guild_id: int | str) -> dict:
     data = _load_store()
     guild = _guild(data, guild_id)
+    match_export = match_service.export_guild_data(guild_id)
     return {
         "guild_id": str(guild_id),
         "exported_at": _now(),
         "storage_path": str(economy_path()),
+        "match_storage_path": match_export["storage_path"],
         "wallets": list(guild["wallets"].values()),
         "wager_lines": list(guild["lines"].values()),
         "wagers": list(guild["wagers"].values()),
         "transactions": guild["transactions"],
         "audit": guild["audit"],
         "ledger_posts": guild["ledger_posts"],
+        "matches": match_export["matches"],
+        "active_match_contexts": match_export["active_match_contexts"],
+        "unlinked_drafts": match_export["unlinked_drafts"],
     }
 
 
@@ -653,6 +658,9 @@ def health(guild_id: int | str) -> dict:
 def _match_status(guild_id: int | str, match_id: str, provider=None) -> str:
     if provider:
         return provider(guild_id, match_id)
+    local_status = match_service.get_match_status(guild_id, match_id)
+    if local_status:
+        return local_status
     sheet_id = sheets_service.get_active_sheet_id(guild_id)
     if not sheet_id:
         return "missing_active_season"

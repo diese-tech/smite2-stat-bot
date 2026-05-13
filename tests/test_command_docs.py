@@ -26,6 +26,8 @@ def test_help_lists_economy_controls_and_reconciliation_commands():
 
     assert "/forgelens economy-enable" in all_commands
     assert "/forgelens economy-disable" in all_commands
+    assert "/match start" in all_commands
+    assert "/match close" in all_commands
     assert "/ledger transactions" in all_commands
     assert "/ledger audit" in all_commands
     assert "/ledger export" in all_commands
@@ -40,6 +42,7 @@ def test_help_safety_text_mentions_official_match_and_storage_health():
     )
 
     assert "official" in text
+    assert "GodForge" in text
     assert "storage" in dict(help_command.ECONOMY_ADMIN_COMMANDS)["/ledger health"]
 
 
@@ -48,6 +51,8 @@ def test_readme_documents_railway_volume_and_enable_gate():
         readme = f.read()
 
     assert "FORGELENS_ECONOMY_PATH=/app/data/forgelens_economy.json" in readme
+    assert "/match start" in readme
+    assert "GodForge is draft-only" in readme
     assert "/forgelens economy-enable" in readme
     assert "/ledger health" in readme
 

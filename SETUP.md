@@ -139,6 +139,7 @@ STAFF_ROLE_IDS=             ← right-click the role in Discord → Copy ID
                                (comma-separate multiple IDs if needed)
 STARTING_BALANCE=500        <- default fictional community-points wallet seed
 FORGELENS_ECONOMY_PATH=     <- optional persistent economy JSON path
+FORGELENS_MATCHES_PATH=     <- optional persistent ForgeLens match/draft JSON path
 ```
 
 > To copy Channel IDs and Role IDs in Discord, you must have **Developer Mode** enabled. Go to Discord Settings → Advanced → Developer Mode → turn it on. Then right-click any channel or role to see "Copy ID".
