@@ -18,8 +18,8 @@ bot = commands.Bot(command_prefix=commands.when_mentioned, intents=intents)
 
 @bot.event
 async def on_ready():
-    from commands import status, link, result, reparse, newseason, newmatch, forgelens, wager, wallet, betting, ledger, help
-    for mod in (status, link, result, reparse, newseason, newmatch, forgelens, wager, wallet, betting, ledger, help):
+    from commands import status, link, result, reparse, newseason, newmatch, match, forgelens, wager, wallet, betting, ledger, help
+    for mod in (status, link, result, reparse, newseason, newmatch, match, forgelens, wager, wallet, betting, ledger, help):
         mod.setup(bot.tree)
 
     await bot.tree.sync()
@@ -46,8 +46,7 @@ async def on_message(message: discord.Message):
 
     if message.channel.id == screenshot_channel_id:
         await handle_screenshot_message(message)
-    elif message.channel.id == json_channel_id:
-        await handle_json_message(message)
+    await handle_json_message(message, configured_json_channel_id=json_channel_id)
 
     await bot.process_commands(message)
 

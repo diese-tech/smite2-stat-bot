@@ -20,6 +20,7 @@ Confirmed implementation status:
 - `/forgelens setup` and `/forgelens config` are implemented for MVP guild setup and inspection.
 - Screenshot ingestion, Gemini parsing, duplicate evidence detection, and unlinked handling are implemented.
 - GodForge Draft JSON ingestion is implemented as match enrichment.
+- ForgeLens now owns a local guild-scoped match record and active channel match context, with or without GodForge.
 - Google Sheets/Drive are the current operational storage/export surface.
 - Per-guild config is JSON-backed in `guild_config.json`.
 - A legacy `active_season.json` can be migrated into guild config on first read.
@@ -49,11 +50,28 @@ Confirmed implementation status:
 
 ### GodForge Draft JSON
 
-- Reads `.json` attachments in the configured JSON channel.
+- Observes public GodForge handoff embeds and `.json` attachments.
+- Imports only payloads whose `producer` is `GodForge`.
 - Requires a `draft_id`.
 - Supports a `games` array or a flat single-game export shape.
+- Prefers explicit `forgelens_match_id`; otherwise links to the active ForgeLens channel match when one is open.
+- Uses idempotent import keys: `source + guild_id + channel_id + draft_id + game_number`.
 - Appends picks, bans, captains, fearless pool, game status, and evidence fingerprint to `Match Log`.
 - Treats Draft JSON as optional match enrichment, not as official stats or a final result.
+- GodForge is draft-only and never authoritative for results or economy settlement.
+
+### Match Lifecycle
+
+- `/match start` opens the active ForgeLens match context for the current channel and stores Bo1, Bo3, or Bo5 metadata.
+- `/match close` closes the active channel match window without settling wagers.
+- `/result` is the only command that marks a match official for settlement purposes.
+- A match can exist without GodForge, and a GodForge draft can exist without being linked to a match.
+
+### Standalone ForgeLens Usage
+
+- ForgeLens can run without GodForge installed.
+- Staff can open a match with `/match start`, run screenshot and OCR flows, confirm the official result with `/result`, and settle wagers after that official confirmation.
+- Ledger export and archive behavior remain guild-scoped and include linked draft metadata only when present.
 
 ### Guild-Scoped Seasons And Config
 
@@ -101,6 +119,9 @@ flowchart TD
     SlashCommands --> Sheets
     SlashCommands --> Economy["services/economy_service.py"]
     Economy --> EconomyFile["forgelens_economy.json"]
+    SlashCommands --> MatchStore["services/match_service.py"]
+    DraftJson --> MatchStore
+    MatchStore --> MatchFile["forgelens_matches.json"]
     Sheets --> Drive["Google Drive"]
     Sheets --> SeasonSheet["Google Sheet tabs"]
 ```
@@ -109,7 +130,7 @@ Runtime flow:
 
 1. `bot.py` loads guild config for the message's Discord server.
 2. Messages in the configured screenshot channel go to `handle_screenshot_message`.
-3. Messages in the configured JSON channel go to `handle_json_message`.
+3. Public messages are observed for GodForge handoff embeds and compatible JSON attachments.
 4. Screenshot bytes or JSON payloads are fingerprinted for duplicate checks.
 5. Screenshot OCR rows are merged and written to `Player Stats`, or saved to `Unlinked` when no match ID is present.
 6. Draft JSON rows are written to `Match Log`.
@@ -132,11 +153,13 @@ Runtime flow:
 | `/forgelens economy-enable` | Discord admin or stat admin | Enables community-points wallet, wager, and ledger commands for the current guild. |
 | `/forgelens economy-disable` | Discord admin or stat admin | Disables community-points commands while preserving existing economy data. |
 | `/newseason name:` | Stat admin | Creates a Drive folder and Google Sheet, creates/updates the guild active season, and writes the season schema. |
-| `/newmatch blue_captain: red_captain:` | Stat admin | Generates a `LEAGUE_PREFIX-XXXX` match ID and appends a guild-scoped `created` row to `Match Log`. |
+| `/newmatch blue_captain: red_captain:` | Stat admin | Legacy helper that opens a Bo1 ForgeLens match shell and active channel context. |
+| `/match start best_of: blue_team: red_team:` | Stat admin | Creates or reuses the active channel match context and stores Bo1, Bo3, or Bo5 metadata locally in ForgeLens. |
+| `/match close` | Stat admin | Closes the active channel match window without settling wagers. |
 | `/status uid:` | Stat admin | Shows game rows, match status, stat row count, winner, and score for the current guild. |
 | `/link uid:` | Stat admin | Reply-based command that removes a matching row from `Unlinked`, creates a match shell if needed, appends parsed stats, and marks the match `parsed`. |
 | `/reparse` | Stat admin | Reply-based command that removes an old unlinked row for the message and sends screenshots through Gemini again. |
-| `/result uid: winner: score:` | Stat admin | Updates matching guild-scoped Match Log and Player Stats rows and marks the match `official`. |
+| `/result winner: score: uid:` | Stat admin | Marks the ForgeLens match official, then updates any linked Match Log and Player Stats rows when a season sheet exists. |
 | `/wager create match_id: title: option_a: option_b: max_wager: close_condition:` | Stat admin | Creates a guild-scoped two-option wager line in `created` status. |
 | `/wager open line_id:` | Stat admin | Opens a created or closed line for betting. |
 | `/wager close line_id:` | Stat admin | Closes an open line so no new bets can be placed. |
@@ -204,6 +227,7 @@ CONFIDENCE_THRESHOLD=90
 BETTING_ENABLED=false
 STARTING_BALANCE=500
 FORGELENS_ECONOMY_PATH=/app/data/forgelens_economy.json
+FORGELENS_MATCHES_PATH=/app/data/forgelens_matches.json
 PARENT_DRIVE_FOLDER_ID=optional_google_drive_folder_id
 ```
 
@@ -270,6 +294,7 @@ Local files:
 | --- | --- |
 | `guild_config.json` | Per-guild config, active season pointers, channel IDs, admin IDs, threshold, and Drive parent defaults. Created automatically. |
 | `forgelens_economy.json` or `FORGELENS_ECONOMY_PATH` | Per-guild wallets, wager lines, wagers, ledger transactions, audit entries, and manual ledger posts. Created automatically by economy commands. |
+| `forgelens_matches.json` or `FORGELENS_MATCHES_PATH` | Per-guild match records, active channel contexts, linked GodForge drafts, and unlinked draft imports. |
 | `active_season.json` | Legacy active-season file. If present, it can be migrated into a guild entry on first lookup. |
 
 Each season Google Sheet contains:
@@ -308,6 +333,7 @@ archived
 - Screenshot-derived game numbers are currently blank because the correlator does not assign game order.
 - `append_player_stats` increments `Total Games Logged` each time stats rows are appended; this is not the same as a fully reviewed game count.
 - `/result` marks Match Log rows and Player Stats as `official`, but it does not calculate the `Win` column.
+- `/result` is the authoritative economy unlock. GodForge imports never settle wagers directly.
 - Duplicate evidence checks require the same guild, match ID, and fingerprint. Unlabelled screenshots are not checked against a match ID until linked.
 - Fuzzy matching is currently a hint for unlinked screenshots, not an automatic attachment.
 - `get_exportable_player_stats` exists for `confirmed` and `official` rows, but no dedicated export command is implemented yet.
@@ -363,6 +389,7 @@ Restart the Railway service, then run `/ledger health` and `/wallet check` again
 - The current economy subsystem is JSON-backed. With `FORGELENS_ECONOMY_PATH` on a persistent Railway volume it is acceptable for MVP use, but a real database is still the long-term target.
 - The MVP payout model is pool-style two-option match outcome betting only. Stat props and custom odds need separate design.
 - Wager lines default to manual close/lock. There is no reliable GodForge started-match signal wired in yet.
+- Bo3 and Bo5 flows are supported by linking multiple GodForge drafts under one ForgeLens `match_id`.
 - Settlement requires the line to be `closed` or `locked` and the linked match to be `official`.
 - Settlement is idempotent by state: already-settled lines reject another settlement attempt.
 - Admin voids refund placed wagers and preserve transaction history.
@@ -391,6 +418,8 @@ Read these before implementation, debugging, migration, or production fixes:
 - [docs/adr/0001-separate-godforge-from-forgelens-responsibilities.md](docs/adr/0001-separate-godforge-from-forgelens-responsibilities.md)
 - [docs/adr/0002-scope-forgelens-data-by-discord-guild.md](docs/adr/0002-scope-forgelens-data-by-discord-guild.md)
 - [docs/adr/0003-use-separate-match-and-ledger-lifecycles.md](docs/adr/0003-use-separate-match-and-ledger-lifecycles.md)
+- [docs/GODFORGE_INTEGRATION.md](docs/GODFORGE_INTEGRATION.md)
+- [docs/STANDALONE_USAGE.md](docs/STANDALONE_USAGE.md)
 
 Development rules of thumb:
 

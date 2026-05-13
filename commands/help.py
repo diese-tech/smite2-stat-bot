@@ -28,11 +28,13 @@ SETUP_COMMANDS = [
 
 MATCH_COMMANDS = [
     ("/newseason", "Create a new guild-scoped season sheet and make it active."),
-    ("/newmatch", "Create a guild-scoped match ID shell."),
+    ("/newmatch", "Legacy alias that opens a Bo1 match shell and channel context."),
+    ("/match start", "Open the active ForgeLens match context for this channel, with Bo1, Bo3, or Bo5 metadata independent of GodForge."),
+    ("/match close", "Close the active channel match window without settling wagers."),
     ("/status", "Show match status, game rows, stat rows, winner, and score."),
     ("/link", "Reply to an unlinked screenshot and attach it to a match ID."),
     ("/reparse", "Reply to a screenshot and rerun OCR."),
-    ("/result", "Mark a reviewed match official with winner and score."),
+    ("/result", "Mark a reviewed ForgeLens match official with winner and score."),
 ]
 
 ECONOMY_ADMIN_COMMANDS = [
@@ -78,7 +80,7 @@ def setup(tree: app_commands.CommandTree) -> None:
             name="Result And Wager Safety",
             value=(
                 "`/result` makes a match official. Wager settlement requires an official match "
-                "and a closed or locked line. Community points are fictional only; there is no "
+                "and a closed or locked line. GodForge drafts can enrich a match but never settle it. Community points are fictional only; there is no "
                 "payment integration or real-money wagering. Economy commands require `/forgelens economy-enable`; "
                 "`/ledger health` remains available for storage checks."
             ),
