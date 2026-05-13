@@ -40,3 +40,31 @@ def staff_only():
         return False
 
     return app_commands.check(predicate)
+
+
+def setup_allowed():
+    """Allow setup by Discord admins or already-configured stat admins."""
+    async def predicate(interaction: discord.Interaction) -> bool:
+        if not isinstance(interaction.user, discord.Member):
+            await interaction.response.send_message(
+                "ForgeLens commands must be used inside a Discord server.", ephemeral=True
+            )
+            return False
+
+        if interaction.user.guild_permissions.administrator:
+            return True
+
+        guild_cfg = guild_config_service.get_guild_config(interaction.guild_id)
+        admin_role_ids = set(guild_cfg.get("stat_admin_role_ids") or config.STAFF_ROLE_IDS)
+        admin_user_ids = set(guild_cfg.get("stat_admin_user_ids") or config.STAT_ADMIN_USER_IDS)
+        user_role_ids = {r.id for r in interaction.user.roles}
+        if interaction.user.id in admin_user_ids or user_role_ids & admin_role_ids:
+            return True
+
+        await interaction.response.send_message(
+            "You need Discord administrator permission or a stat admin role to set up ForgeLens.",
+            ephemeral=True,
+        )
+        return False
+
+    return app_commands.check(predicate)

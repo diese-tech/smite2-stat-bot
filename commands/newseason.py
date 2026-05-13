@@ -21,7 +21,8 @@ def setup(tree: app_commands.CommandTree) -> None:
 
         guild_cfg = guild_config_service.get_guild_config(guild_id)
         season_name = name.strip()
-        folder_name = f"{config.LEAGUE_SLUG} — {season_name}"
+        league_slug = guild_cfg.get("league_slug") or config.LEAGUE_SLUG
+        folder_name = f"{league_slug} - {season_name}"
 
         await interaction.followup.send(f"Creating Drive folder and sheet for **{season_name}**…")
 

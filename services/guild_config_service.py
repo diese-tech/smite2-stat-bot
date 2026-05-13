@@ -33,6 +33,9 @@ def _guild_key(guild_id: int | str) -> str:
 def _bootstrap_config(guild_id: int | str) -> dict:
     return {
         "guild_id": _guild_key(guild_id),
+        "league_name": config.LEAGUE_NAME,
+        "league_slug": config.LEAGUE_SLUG,
+        "league_prefix": config.LEAGUE_PREFIX,
         "screenshot_channel_id": config.SCREENSHOT_CHANNEL_ID,
         "json_channel_id": config.JSON_CHANNEL_ID,
         "admin_report_channel_id": config.ADMIN_REPORT_CHANNEL_ID,
@@ -62,6 +65,17 @@ def get_guild_config(guild_id: int | str) -> dict:
                 changed = True
         if changed:
             _save_store(store)
+    return guild
+
+
+def update_guild_config(guild_id: int | str, updates: dict) -> dict:
+    store = _load_store()
+    key = _guild_key(guild_id)
+    guild = store["guilds"].get(key) or _bootstrap_config(key)
+    for field, value in updates.items():
+        guild[field] = value
+    store["guilds"][key] = guild
+    _save_store(store)
     return guild
 
 

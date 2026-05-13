@@ -6,14 +6,15 @@ import discord
 from discord import app_commands
 
 import config
+from services import guild_config_service
 from services import sheets_service
 from commands._checks import require_guild, staff_only
 
 
-def _generate_uid() -> str:
+def _generate_uid(prefix: str) -> str:
     chars = string.ascii_uppercase + string.digits
     suffix = "".join(random.choices(chars, k=4))
-    return f"{config.LEAGUE_PREFIX}-{suffix}"
+    return f"{prefix}-{suffix}"
 
 
 async def _uid_is_unique(sheet_id: str, uid: str, guild_id: int) -> bool:
@@ -40,12 +41,15 @@ def setup(tree: app_commands.CommandTree) -> None:
             await interaction.followup.send("No active season sheet. Run `/newseason` first.")
             return
 
+        guild_cfg = guild_config_service.get_guild_config(guild_id)
+        league_prefix = str(guild_cfg.get("league_prefix") or config.LEAGUE_PREFIX).upper()
+
         # Generate a collision-free UID (retries handle the rare duplicate)
-        uid = _generate_uid()
+        uid = _generate_uid(league_prefix)
         for _ in range(5):
             if await _uid_is_unique(sheet_id, uid, guild_id):
                 break
-            uid = _generate_uid()
+            uid = _generate_uid(league_prefix)
 
         from datetime import timezone
         submitted_at = interaction.created_at.replace(tzinfo=timezone.utc).isoformat()

@@ -17,6 +17,7 @@ It is still not a finished full production stat platform. Current hardening is f
 Confirmed implementation status:
 
 - Discord slash commands are implemented in `commands/`.
+- `/forgelens setup` and `/forgelens config` are implemented for MVP guild setup and inspection.
 - Screenshot ingestion, Gemini parsing, duplicate evidence detection, and unlinked handling are implemented.
 - GodForge Draft JSON ingestion is implemented as match enrichment.
 - Google Sheets/Drive are the current operational storage/export surface.
@@ -104,6 +105,8 @@ Runtime flow:
 
 | Command | Who Uses It | Confirmed Behavior |
 | --- | --- | --- |
+| `/forgelens setup screenshot_channel: json_channel: admin_channel: stat_admin_role: league_prefix: parent_drive_folder_id: confidence_threshold:` | Discord admin or stat admin | Configures the current guild and replies with a setup summary plus the next `/newseason` step. |
+| `/forgelens config` | Discord admin or stat admin | Shows the current ForgeLens config for the current guild. |
 | `/newseason name:` | Stat admin | Creates a Drive folder and Google Sheet, creates/updates the guild active season, and writes the season schema. |
 | `/newmatch blue_captain: red_captain:` | Stat admin | Generates a `LEAGUE_PREFIX-XXXX` match ID and appends a guild-scoped `created` row to `Match Log`. |
 | `/status uid:` | Stat admin | Shows game rows, match status, stat row count, winner, and score for the current guild. |
@@ -169,7 +172,7 @@ LEAGUE_NAME = "Frank's Retirement Home"
 LEAGUE_SLUG = "franks-retirement-home"
 ```
 
-Those constants are used for generated sheet/folder naming and defaults. Per-guild runtime settings are stored in `guild_config.json`, but there is not yet a Discord setup command for editing every config value in-server.
+Those constants are used as bootstrap defaults. Per-guild runtime settings are stored in `guild_config.json`; run `/forgelens setup` to set the active Discord channels, stat admin role, match ID prefix, Drive folder, and confidence threshold for a server.
 
 ### Verify Auth
 
@@ -251,7 +254,8 @@ archived
 
 - ForgeLens commands must be used inside a Discord server; DM commands are rejected.
 - `guild_config.json` is JSON-backed local state. On ephemeral hosts, make sure it persists or supply bootstrap env values and recreate active seasons as needed.
-- The bot does not yet expose `/forgelens setup` or config editing commands; per-guild config is bootstrapped from environment defaults and code paths.
+- `/forgelens setup` can be run by Discord administrators or already-configured stat admins, which prevents first-run lockout when no stat admin role is configured yet.
+- `/forgelens setup` is an MVP setup flow, not a full production admin console. It writes the main guild config fields but does not validate Google Drive access.
 - `on_ready` currently calls each command module's `setup` before syncing slash commands.
 - Screenshot OCR keeps one `scoreboard` and one `details` result from a message. Multiple attachments of the same type can overwrite the previous in-memory result for that message.
 - Screenshot-derived game numbers are currently blank because the correlator does not assign game order.
@@ -268,7 +272,7 @@ archived
 ### Guild Scoping
 
 - Recent code adds guild-scoped rows and active seasons, but Google credentials and default league identity are still process-level.
-- There is no first-class setup/config command for guild owners to edit channel IDs, Drive folders, admins, or thresholds from Discord.
+- `/forgelens setup` now covers the first-run config path, but granular edit commands for individual channels, admins, Drive folders, and thresholds are still pending.
 - `guild_config.json` should move to durable storage before serious multi-server production use.
 
 ### Match Linkage And Season Behavior
@@ -293,7 +297,7 @@ archived
 
 ## Roadmap
 
-- Add `/forgelens setup` and config commands for guild-scoped channels, admins, confidence threshold, and export destinations.
+- Expand `/forgelens setup` into granular config commands for guild-scoped channels, admins, confidence threshold, and export destinations.
 - Move `guild_config.json` and sheet-derived state into durable storage.
 - Add field-level confidence capture and review workflows.
 - Add player identity, aliases, and optional Discord user mapping.
