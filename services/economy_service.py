@@ -457,12 +457,13 @@ def settle_line(
     total_pool = sum(int(w["amount"]) for w in wagers)
     winning_wagers = [w for w in wagers if w["option"].lower() == winner.lower()]
     winning_pool = sum(int(w["amount"]) for w in winning_wagers)
+    payout_amounts = _pool_payouts(winning_wagers, total_pool, winning_pool)
     payouts = []
 
     for wager in wagers:
         wager["updated_at"] = _now()
         if wager in winning_wagers and winning_pool > 0:
-            payout = round((int(wager["amount"]) / winning_pool) * total_pool)
+            payout = payout_amounts[wager["wager_id"]]
             wallet = guild["wallets"][wager["user_id"]]
             wallet["balance"] = int(wallet["balance"]) + payout
             wallet["updated_at"] = _now()
@@ -488,6 +489,30 @@ def settle_line(
     _append_audit(guild, "line.settle", actor_id, line["line_id"], {"winner": winner, "payouts": payouts})
     _save_store(data)
     return {"line": line, "payouts": payouts, "total_pool": total_pool, "winning_pool": winning_pool}
+
+
+def _pool_payouts(winning_wagers: list[dict], total_pool: int, winning_pool: int) -> dict[str, int]:
+    if not winning_wagers or winning_pool <= 0 or total_pool <= 0:
+        return {}
+
+    shares = []
+    allocated = 0
+    for wager in winning_wagers:
+        numerator = int(wager["amount"]) * total_pool
+        base = numerator // winning_pool
+        remainder = numerator % winning_pool
+        allocated += base
+        shares.append({
+            "wager_id": wager["wager_id"],
+            "base": base,
+            "remainder": remainder,
+        })
+
+    payouts = {share["wager_id"]: share["base"] for share in shares}
+    leftover = total_pool - allocated
+    for share in sorted(shares, key=lambda item: (-item["remainder"], item["wager_id"]))[:leftover]:
+        payouts[share["wager_id"]] += 1
+    return payouts
 
 
 def void_line(guild_id: int | str, line_id: str, actor_id: int | str, reason: str) -> dict:

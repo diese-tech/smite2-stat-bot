@@ -47,3 +47,34 @@ def test_update_guild_config_persists_setup_fields(tmp_path, monkeypatch):
     assert guild["confidence_threshold"] == 95
     assert guild["starting_balance"] == 750
 
+
+def test_new_guild_uses_betting_enabled_bootstrap_default(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(guild_config_service.config, "BETTING_ENABLED", True)
+
+    guild = guild_config_service.get_guild_config(111)
+
+    assert guild["betting_enabled"] is True
+
+
+def test_update_guild_config_persists_economy_enable_disable(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    enabled = guild_config_service.update_guild_config(111, {"betting_enabled": True})
+    disabled = guild_config_service.update_guild_config(111, {"betting_enabled": False})
+
+    assert enabled["betting_enabled"] is True
+    assert disabled["betting_enabled"] is False
+    assert guild_config_service.get_guild_config(111)["betting_enabled"] is False
+
+
+def test_guild_config_updates_do_not_leak_between_guilds(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    guild_config_service.update_guild_config(111, {"betting_enabled": True, "starting_balance": 900})
+    guild_config_service.update_guild_config(222, {"betting_enabled": False, "starting_balance": 300})
+
+    assert guild_config_service.get_guild_config(111)["betting_enabled"] is True
+    assert guild_config_service.get_guild_config(111)["starting_balance"] == 900
+    assert guild_config_service.get_guild_config(222)["betting_enabled"] is False
+    assert guild_config_service.get_guild_config(222)["starting_balance"] == 300
