@@ -1,4 +1,4 @@
-# smite2-stats-bot – Google Cloud Setup Guide
+# forgelens – Google Cloud Setup Guide
 
 This guide walks you through everything you need to do **before** the bot can run. Follow each section in order. You do not need to be technical — every step includes exactly what to click.
 
@@ -34,7 +34,7 @@ Both are controlled through a single **Google Cloud project** using one set of c
 1. Go to [console.cloud.google.com](https://console.cloud.google.com) and sign in with the **bot account** you just created.
 2. At the top of the page, click the project dropdown (it may say **"Select a project"** or show a previous project name).
 3. Click **"New Project"** in the top-right corner of the popup.
-4. Set the **Project name** to: `smite2-stats-bot`
+4. Set the **Project name** to: `forgelens`
 5. Leave **Organization** and **Location** at their defaults.
 6. Click **"Create"**.
 7. Wait a few seconds. When the notification appears, click **"Select Project"** to switch into it.
@@ -72,7 +72,7 @@ You need to turn on two APIs. Do this for each one:
 
 1. Go to [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — sign in with the **bot account**.
 2. Click **"Create API key"**.
-3. Select your `smite2-stats-bot` project from the dropdown.
+3. Select your `forgelens` project from the dropdown.
 4. Click **"Create API key in existing project"**.
 5. Copy the key shown. **Save it now** — you won't be able to see it again.
 
@@ -87,9 +87,9 @@ A service account is like a login for the bot itself — it lets the bot access 
 1. In the Cloud Console, open the left-hand menu and go to **IAM & Admin → Service Accounts**.
 2. Click **"+ Create Service Account"** at the top.
 3. Fill in:
-   - **Service account name:** `smite2-bot`
-   - **Service account ID:** will auto-fill as `smite2-bot`
-   - **Description:** `smite2-stats-bot service account`
+   - **Service account name:** `forgelens-bot`
+   - **Service account ID:** will auto-fill as `forgelens-bot`
+   - **Description:** `forgelens service account`
 4. Click **"Create and Continue"**.
 5. On the **"Grant this service account access"** step, click the **"Role"** dropdown and select:
    - **Editor** (under Basic)
@@ -99,13 +99,13 @@ A service account is like a login for the bot itself — it lets the bot access 
 
 ## Section 6 – Download the Credentials JSON
 
-1. You should now see your `smite2-bot` service account listed. Click on it.
+1. You should now see your `forgelens-bot` service account listed. Click on it.
 2. Go to the **"Keys"** tab.
 3. Click **"Add Key" → "Create new key"**.
 4. Select **JSON** and click **"Create"**.
-5. A file will download automatically — it will be named something like `smite2-stats-bot-xxxxxxxxxx.json`.
+5. A file will download automatically — it will be named something like `forgelens-xxxxxxxxxx.json`.
 6. Rename it to exactly: `credentials.json`
-7. Place it in the root of the `smite2-stats-bot/` project folder (same folder as `bot.py`).
+7. Place it in the root of the `forgelens/` project folder (same folder as `bot.py`).
 
 > **Important:** Never commit this file to GitHub. It is already listed in `.gitignore`.
 
@@ -113,8 +113,8 @@ A service account is like a login for the bot itself — it lets the bot access 
 
 ## Section 7 – Note the Service Account Email
 
-1. Back on the Service Accounts page, find `smite2-bot`.
-2. Copy the **email address** — it looks like: `smite2-bot@smite2-stats-bot.iam.gserviceaccount.com`
+1. Back on the Service Accounts page, find `forgelens-bot`.
+2. Copy the **email address** — it looks like: `forgelens-bot@forgelens.iam.gserviceaccount.com`
 
 You will need to **share your Google Sheet with this email** (like you'd share a doc with a colleague) when you create your first season sheet. The bot cannot access a sheet unless it has been shared with the service account.
 
@@ -148,7 +148,7 @@ FORGELENS_MATCHES_PATH=     <- optional persistent ForgeLens match/draft JSON pa
 
 ## Section 9 – Install Python Dependencies
 
-Open a terminal in the `smite2-stats-bot/` folder and run:
+Open a terminal in the `forgelens/` folder and run:
 
 ```bash
 pip install -r requirements.txt
@@ -233,8 +233,6 @@ Useful follow-up commands:
 /help
 ```
 
-*Once `test_auth.py` passes, notify Claude Code and it will proceed to Step 2: project scaffolding.*
-
 ---
 
 ## Section 11 – League Owner: Create the Shared Drive Folder
@@ -278,13 +276,13 @@ Running `python bot.py` on your own machine works for testing, but the bot goes 
 ### Step 1 – Push your code to a private GitHub repository
 
 1. Create a free account at [github.com](https://github.com) if you don't have one.
-2. Create a **private** repository called `smite2-stats-bot`.
+2. Create a **private** repository called `forgelens`.
 3. In your project folder, open a terminal and run:
    ```bash
    git init
    git add .
    git commit -m "Initial commit"
-   git remote add origin https://github.com/YOUR_USERNAME/smite2-stats-bot.git
+   git remote add origin https://github.com/YOUR_USERNAME/forgelens.git
    git push -u origin main
    ```
 4. Verify that `.env` and `franks-retirement-home-credentials.json` are **not** visible in GitHub — they are listed in `.gitignore` and should not appear.
@@ -295,7 +293,7 @@ Running `python bot.py` on your own machine works for testing, but the bot goes 
 
 1. Go to [railway.app](https://railway.app) and sign in with GitHub.
 2. Click **"New Project" → "Deploy from GitHub repo"**.
-3. Select your `smite2-stats-bot` repository.
+3. Select your `forgelens` repository.
 4. Railway will detect Python and install `requirements.txt` automatically. It will also pick up the `Procfile` and know to run `python bot.py`.
 
 ---

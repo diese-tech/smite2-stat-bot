@@ -202,8 +202,8 @@ Start with [SETUP.md](SETUP.md) for the full Google Cloud and Railway walkthroug
 ### Install
 
 ```bash
-git clone https://github.com/diese-tech/smite2-stat-bot.git
-cd smite2-stat-bot
+git clone https://github.com/diese-tech/forgelens.git
+cd forgelens
 pip install -r requirements.txt
 ```
 
