@@ -259,8 +259,7 @@ def official_result(
     normalized_match_id = match_id.upper().strip()
     match = guild["matches"].get(normalized_match_id)
     if match is None:
-        match = _base_match(guild_id, "0", actor_id, normalized_match_id, 1, "", "")
-        guild["matches"][normalized_match_id] = match
+        raise ValueError(f"Match {normalized_match_id} not found. Use /match start to open it first.")
     now = _now()
     match["status"] = "official"
     match["result"] = {

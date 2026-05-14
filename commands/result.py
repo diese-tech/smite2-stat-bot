@@ -37,7 +37,11 @@ def setup(tree: app_commands.CommandTree) -> None:
             return
 
         match_id = match["match_id"]
-        await asyncio.to_thread(match_service.official_result, guild_id, match_id, winner, score, interaction.user.id)
+        try:
+            await asyncio.to_thread(match_service.official_result, guild_id, match_id, winner, score, interaction.user.id)
+        except ValueError as exc:
+            await interaction.followup.send(str(exc))
+            return
 
         sheet_id = sheets_service.get_active_sheet_id(guild_id)
         updated_drafts = 0
